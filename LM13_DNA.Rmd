@@ -1,0 +1,1679 @@
+---
+title: "16S itag analyses Fujimoto et al., submitted to Journal of Great Lakes Research"
+author: "Vincent Denef"
+date: "April 25, 2016"
+output:
+  md_document:
+    toc: true
+    variant: markdown_github
+---
+    
+```{r global_options, include=FALSE}
+
+knitr::opts_chunk$set(
+  fig.width = 7, 
+  fig.height = 5, 
+  fig.align = 'center', 
+  fig.path = 'Figures/',
+  warning = FALSE, 
+  message = FALSE
+)
+
+```
+
+### Load Libraries
+```{r load_libs, include=FALSE}
+library(phyloseq)
+library(ggplot2)
+library(ape)
+library(vegan)
+library(plyr)
+library(dplyr)
+library(scales)
+library(grid)
+library(reshape2)
+library(DESeq2)
+library(pegas)
+library(pgirmess)
+library(multcomp)
+library(multcompView)
+theme_set(theme_bw())
+
+source("/Users/vdenef/Documents/UMich/Digital_Notebooks/GitHub/MicrobeMiseq/R/miseqR.R")
+source("/Users/vdenef/Documents/UMich/Digital_Notebooks/GitHub/LM13_DNA/LM13_DNA_function.R")
+
+setwd("/Users/vdenef/Documents/UMich/Digital_Notebooks/GitHub/LM13_DNA/")
+
+### Set our theme for our plots down the road
+set_ggtheme <- theme_set(theme_bw() + 
+                    theme(plot.title = element_text(face="bold", size = 20),  #Set the plot title
+                    strip.text.x = element_text(size=12, face="bold"),  #Set the facet titles on x-axis 
+                    strip.text.y = element_text(size=12, face="bold"),  #Set the facet titles on x-axis 
+                    strip.background = element_blank(),  #Set the facet background to no background
+                    axis.title.x = element_text(face="bold", size=16),  #Set the x-axis title
+                    axis.title.y = element_text(face="bold", size=16),  #Set the y-axis title
+                    axis.text.x = element_text(colour = "black", size=14),  #Set the x-axis labels
+                    axis.text.y = element_text(colour = "black", size=14),  #Set the y-axis labels
+                    legend.title = element_text(size=14, face="bold"),  #Set the legend title 
+                    legend.text = element_text(size = 14),  #Set the legend text
+                    legend.position="right"))  #Default the legend position to the right
+
+###set taxonomy plotting colors
+group.colors <- c(Acidobacteria = "grey26", Actinobacteria = "royalblue", Alphaproteobacteria = "steelblue4", Armatimonadetes = "red", Bacteroidetes = "darkred", "BD1-5" = "chartreuse", Betaproteobacteria = "steelblue4", Caldiserica = "black","Candidate_division_BRC1" = "violetred4", "Candidate_division_JS1" = "aquamarine1", "Candidate_division_OD1" = "#6DDE88", "Candidate_division_OP3" = "hotpink", "Candidate_division_OP8" = "goldenrod1", "Candidate_division_OP11" = "chocolate4", "Candidate_division_SR1" = "tan3", "Candidate_division_TM7" = "skyblue1", "Candidate_division_WS3" = "magenta", Chlamydiae="violet", Chlorobi="cyan2", Chloroflexi="darkgreen", Cyanobacteria = "chartreuse3", Deferribacteres = "slateblue3", "Deinococcus-Thermus" = "violetred", Dictyoglomi = "cornsilk4", Deltaproteobacteria = "steelblue4", Elusimicrobia = "yellow3", Epsilonproteobacteria = "steelblue4", Fibrobacteres = "darkred", Firmicutes = "blue4", FGL7S = "palevioletred1", Fusobacteria = "slateblue1", Gammaproteobacteria = "steelblue4", Gemmatimonadetes="black", GOUTA4 = "plum1", "Hyd24-12" = "sienna2", JTB23 = "seashell2", Nitrospirae = "yellow1", "NPL-UPA2"="#652926", OC31 = "mediumpurple4", Planctomycetes = "mediumorchid3", Proteobacteria = "steelblue4", "SHA-109" = "lightsalmon3", SM2F11 = "lightskyblue2", SPOTSOCT00m83 = "orangered", Spirochaetae = "gold3", Tenericutes="pink", Thermotogae = "chocolate1", TA06 = "lightslateblue",TA18 = "rosybrown3", TM6 = "olivedrab", unclassified = "grey", Verrucomicrobia = "purple4", "WCHB1-60" = "palegreen", Other = "darkgrey", Cytophagia = "darkred", Sphingobacteria = "darkred",Flavobacteria = "darkred")
+```
+
+### Import Data
+```{r Import_Data, include=FALSE}
+###input data were obtained fromn the jgi output produced by their iTagger pipeline, which performs the following steps
+#(1) CONTAM FILTER: Filter one or more contaminants using Duk (e.g. PhiX control, sequencing library adapter dimers, human contaminants, etc.).  For paired reads, the entire pair is filtered if one end-read has a high-scoring hit.
+#(2) PRIMER TRIM: PCR primers (of the conserved region) are trimmed away.  For paired-end reads, both forward and reverse primers must be found, otherwise the entire pair is filtered.
+#(3) ITERATIVE PAIR MERGING: Reads are trimmed as a pair, removing the last base from whichever end has the highest expected error in a window 5bp wide.  Reads are trimmed from mean + 3 standard deviations to mean - 3 standard deviations in 0.5 standard deviation steps.  After each trimming step, pairs are merged into single sequences with either Flash or Pandaseq.  Pairs which are not merged continue to the next round of trimming.  Paired reads which are not combined are discarded.
+#(4) EXPECTED-ERROR FILTER: Merged reads are filtered if they have an expected number of errors which exceeds the threshold.  The config file indicates the maximum number of expected errors per 100bp. Note that Flash and Pandaseq produce different quality scores in the overlap-assembled regions.
+
+###as JGI used the wrong file to connect sample names to read files, we need to correct these using the following commands
+#TO BE ADDED
+
+
+
+
+### loading mothur output with FWDB+silva taxonomy and sample metadata. 
+## create phyloseq object
+sharedfile <- "Input_data/jgi.contigs.good.unique.good.filter.unique.precluster.pick.pick.an.unique_list.shared"
+taxfile <- "Input_data/jgi.contigs.good.unique.good.filter.unique.precluster.pick.pick.an.unique_list.0.03.cons.taxonomy"
+mothurdata <- import_mothur(mothur_shared_file = sharedfile ,mothur_constaxonomy_file = taxfile )
+sampledata <- read.table("Input_data/LMSampleDescription.tsv",sep="\t",header=T,row.names=1,as.is=T)
+SAMPLE = sample_data(sampledata)
+physeq = merge_phyloseq(mothurdata, SAMPLE)
+
+### We need to change the taxonomy names: when using the fwdb taxonomy we need to add different headers after removing the last column, which contains no information except for 1 Verrucomicrobia taxon
+tax_table(physeq) <- tax_table(physeq)[,-8] # this removes the final column
+tax_table(physeq) <- cbind(tax_table(physeq),row.names(tax_table(physeq)))
+colnames(tax_table(physeq)) <- c("Kingdom","Phylum","Class","Order","Family","Genus","Tribe","Species")
+
+### removing non-bacterial reads (was already done in mothur, but just to be safe after merging taxonomies)
+physeq <- subset_taxa(physeq, Kingdom == "Bacteria")
+
+# Load physeq from workspace
+#load(file = ".RData")
+
+```
+
+``` {r merge duplicates}
+# Merge samples on Duplicates column
+physeq_dupmerge <- merge_samples(physeq, "Duplicates")
+
+# Weird bug, set taxa to rows
+if (!taxa_are_rows(physeq_dupmerge)) {
+  otu_table(physeq_dupmerge) <- t(otu_table(physeq_dupmerge))
+}
+
+## Fix metadata of merged duplicates 
+# Grab unique lines (first entry) from inland phyloseq object metadata
+unique_idx <- !(duplicated(sample_data(physeq)$Duplicates))
+duplicate_metadata <- sample_data(physeq)[unique_idx, ]
+# Assign new metadata to phyloseq object
+sample_data(physeq_dupmerge) <- duplicate_metadata
+physeq_dupmerge <- prune_taxa(taxa_sums(physeq_dupmerge) > 0, physeq_dupmerge)
+```
+
+```{r scaling, include=FALSE}
+
+#check number of reads in each sample, differences in count are in part due differet numbers of chlorophyl reads depending on sample
+sampsums <- data.frame(sums = sample_sums(physeq_dupmerge))
+
+ggplot(sampsums, aes(x = sums)) + geom_histogram(binwidth = 10000)
+
+min(sampsums)
+max(sampsums)
+
+# Scales reads to smallest library size which is 70,480
+physeq.scale <- scale_reads(physeq_dupmerge, min(sample_sums(physeq_dupmerge)))
+physeq.scale <- prune_taxa(taxa_sums(physeq.scale) > 0, physeq.scale)
+```
+
+```{r Proteobacteria and Bacteroidetes phylum change to class}
+
+### ADD THE PROTEOBACTERIA CLASSES TO THE PHYLA NAME FIELD IN PHYLOSEQ OBJECT TAXONOMY 
+phy <- data.frame(tax_table(physeq.scale))
+Phylum <- as.character(phy$Phylum)
+Class <- as.character(phy$Class)
+
+for  (i in 1:length(Phylum)){ 
+  if (Phylum[i] == "Proteobacteria"){
+    if (Class[i] == "unclassified"){
+      Phylum[i] <- Phylum[i]       
+    } else {
+      Phylum[i] <- Class[i]
+    }
+  } 
+}
+
+phy$Phylum <- Phylum
+t <- tax_table(as.matrix(phy))
+
+tax_table(physeq.scale) <- t
+
+#same for physeq_dupmerge, but also add class name to Bacteroidetes phylum field
+phy <- data.frame(tax_table(physeq_dupmerge))
+Phylum <- as.character(phy$Phylum)
+Class <- as.character(phy$Class)
+
+for  (i in 1:length(Phylum)){ 
+  if (Phylum[i] == "Proteobacteria"){
+    if (Class[i] == "unclassified"){
+      Phylum[i] <- Phylum[i]       
+    } else {
+      Phylum[i] <- Class[i]
+    }
+  } 
+}
+
+for  (i in 1:length(Phylum)){ 
+  if (Phylum[i] == "Bacteroidetes"){
+    if (Class[i] == "unclassified"){
+      Phylum[i] <- Phylum[i] 
+    } else {
+      Phylum[i] <- Class[i]
+    }
+  } 
+}
+
+for  (i in 1:length(Phylum)){ 
+  if (Phylum[i] == "Sphingobacteriia"){
+      Phylum[i] <- "Sphingobacteria" 
+    }
+  } 
+
+for  (i in 1:length(Phylum)){ 
+  if (Phylum[i] == "Flavobacteriia"){
+      Phylum[i] <- "Flavobacteria" 
+    }
+  } 
+
+phy$Phylum <- Phylum
+t <- tax_table(as.matrix(phy))
+
+tax_table(physeq_dupmerge) <- t
+```
+
+##Figure 1: alpha diversity
+```{r alpha diversity metrics calculation}
+# For alpha diversity we will RAREFY our phyloseq object.  Our raw-data phyloseq object was:
+physeq_dupmerge  # Raw Merged Samples
+min(sample_sums(physeq_dupmerge))
+
+# Following code from Michelle Berry's Butterflygut website: http://rstudio-pubs-static.s3.amazonaws.com/25722_9fc9bdc48f0d4f13b05fa61baeda57a0.html#alpha-diversity
+# Rarefy to 70480 reads with replacement 100 times to estimate species richness
+# Initialize matrices to store richness and evenness estimates
+richness <- matrix(nrow = 47,ncol = 100)  # Store richness:  We have 47 samples 
+row.names(richness) <- sample_names(physeq_dupmerge)
+evenness <- matrix(nrow = 47,ncol = 100)  #Store evenness
+row.names(evenness) <- sample_names(physeq_dupmerge)
+
+# We want to be reproducible - so let's set the seed.
+set.seed(3)
+
+# For 100 replications, rarefy the OTU table to 70480 reads and store the richness and evennes estimates in our 2 matrices we just created. Run this once, afterwards load saved data
+#for (i in 1:100) {
+# r <- rarefy_even_depth(physeq_dupmerge, sample.size = 70480, verbose = FALSE, replace = TRUE)
+#  rich <- as.numeric(as.matrix(estimate_richness(r, measures="Observed")))
+#  richness[,i] <- rich
+#  even <- as.numeric(as.matrix(estimate_richness(r, measures="InvSimpson")))
+#  evenness[,i] <- even
+#}
+
+#write.table(richness, "Input_data/ObservedRichness100", row.names = TRUE)
+#write.table(evenness, "Input_data/InvSimpson100", row.names = TRUE)
+
+richness <- read.table("Input_data/ObservedRichness100", header = TRUE)
+evenness <- read.table("Input_data/InvSimpson100", header = TRUE)
+
+# Create a new matrix to hold the means and standard deviations of all the richness estimates
+rich_stats = matrix(nrow= nrow(richness), ncol=1)
+rich_stats[,1] = apply(richness, 1, mean)
+#rich_stats[,2] = apply(richness, 1, sd)
+rich_stats = data.frame(row.names(richness), rich_stats)
+colnames(rich_stats) = c("samples","mean")
+rich_stats$Test <- "Observed Richness"
+rich_stats$Duplicates <- as.character(rich_stats$samples)
+rich_stats <- merge(rich_stats,data.frame(duplicate_metadata),by="Duplicates")
+
+# Create a new matrix to hold the means and standard deviations of the evenness estimates
+even_stats = matrix(nrow = nrow(evenness), ncol = 1)
+even_stats[,1] = apply(evenness, 1, mean)
+#even_stats[,2] = apply(evenness, 1, sd)
+even_stats = data.frame(row.names(evenness), even_stats)
+colnames(even_stats) = c("samples","mean")
+even_stats$Test <- "Inverse Simpson"
+even_stats$Duplicates <- as.character(even_stats$samples)
+even_stats <- merge(even_stats,data.frame(duplicate_metadata),by="Duplicates")
+
+###  Add SIMPSON'S EVENNESS!
+#simps_even = as.data.frame(matrix(nrow = nrow(evenness), ncol = 2))
+simps_even <- data.frame(matrix(nrow = nrow(evenness), ncol = 3))
+colnames(simps_even) = c("samples","mean", "Test")
+simps_even$samples <- even_stats$samples
+simps_even$mean <-  even_stats$mean/rich_stats$mean
+simps_even$Test <- "Simpson's Evenness"
+simps_even$Duplicates <- as.character(simps_even$samples)
+simps_even <- merge(simps_even,data.frame(duplicate_metadata),by="Duplicates")
+```
+
+```{r richness}
+###RICHNESS PLOTS
+## 1. richness differences based on Season
+rich_Season_KW <- kruskal.test(rich_stats$mean ~ as.factor(rich_stats$Season)) 
+print(rich_Season_KW)  # show Kruskal Wallis result
+
+# Which samples are significantly different from each other?  
+rich_Season_KW_MC <- kruskalmc(rich_stats$mean ~ as.factor(rich_stats$Season))  ## Defaults to P < 0.05
+print(rich_Season_KW_MC)
+
+# Test to find the letters to represent significance in a plot
+rich_Season_KW_test <- rich_Season_KW_MC$dif.com$difference # select logical vector
+names(rich_Season_KW_test) <- row.names(rich_Season_KW_MC$dif.com) # add comparison names
+
+# create a list with "homogenous groups" coded by letter
+rich_Season_KW_letters <- multcompLetters(rich_Season_KW_test, compare="<", threshold=0.05, 
+                                Letters=c(letters, LETTERS, "."), reversed = FALSE)
+
+#  Extract the values from the multcompLetters object
+rich_Season_KW_sigs_dataframe <-  data.frame(as.vector(names(rich_Season_KW_letters$Letters)), as.vector(rich_Season_KW_letters$Letters))
+colnames(rich_Season_KW_sigs_dataframe) <- c("Season", "siglabel")
+rich_Season_KW_try <- merge(rich_stats, rich_Season_KW_sigs_dataframe, by = "Season")
+
+rich_Season_KW_try$Season <-factor(rich_Season_KW_try$Season,levels=c( "Sp", "Su", "Fa"))
+
+rich_Season_KW_sigs <- rich_Season_KW_try %>%
+  select(Season, Season, siglabel) %>%
+  distinct()
+
+# finally, the plot
+pdf(file="Figures/Rplot_Richness_Season_boxplot.pdf", width= 5, height=5, pointsize= 14)
+alpha_title <- paste("Richness when rarefied at",min(sample_sums(physeq_dupmerge)),"reads")
+rich_Season_boxplot <- ggplot(rich_Season_KW_try, aes(x = Season, y = mean, fill = Season)) + geom_point(size = 2) +
+  geom_boxplot()  + ggtitle(alpha_title) +
+  geom_text(data = rich_Season_KW_sigs, aes(label = siglabel, x = Season, y = .95), size = 4) +
+  scale_fill_manual(name = "", limits=c("Sp", "Su", "Fa"), 
+                     values = c("Sp" = "grey","Su" = "grey","Fa" = "grey"))+
+  scale_x_discrete(breaks=c("Sp", "Su", "Fa"),
+                   labels=c("Spring\n(n=14)","Summer\n(n=17)", "Fall\n(n=16)")) + 
+  xlab("Season)") + ylab("Observed Richness") + theme_bw() + 
+  theme(plot.title = element_text(face="bold", size = 12),  #Set the plot title
+                                 strip.text.x = element_blank(),  #Set the facet titles on x-axis 
+                                 strip.text.y = element_blank(),  #Set the facet titles on x-axis 
+                                 strip.background = element_blank(),  #Set the facet background to no background
+                                 axis.title.x = element_text(face="bold", size=10),  #Set the x-axis title
+                                 axis.title.y = element_text(face="bold", size=10),  #Set the y-axis title
+                                 axis.text.x = element_text(angle=0, colour = "black", 
+                                                            vjust=1, hjust = 1, size=10),  #Set the x-axis labels
+                                 axis.text.y = element_text(colour = "black", size=10),  #Set the y-axis labels
+                                 legend.title = element_text(size = 8, face="bold"),  #Set the legend title 
+                                 legend.text = element_text(size = 8),  #Set the legend text
+                                 legend.position="none", #Default the legend position to the right
+                                 plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")); rich_Season_boxplot #top, right, bottom, left
+dev.off()
+
+## 2. richness differences based on Fraction
+rich_Fraction_KW <- kruskal.test(rich_stats$mean ~ as.factor(rich_stats$Fraction)) 
+print(rich_Fraction_KW)  # show Kruskal Wallis result
+
+# Which samples are significantly different from each other?  
+rich_Fraction_KW_MC <- kruskalmc(rich_stats$mean ~ as.factor(rich_stats$Fraction))  ## Defaults to P < 0.05
+print(rich_Fraction_KW_MC)
+
+# Test to find the letters to represent significance in a plot
+rich_Fraction_KW_test <- rich_Fraction_KW_MC$dif.com$difference # select logical vector
+names(rich_Fraction_KW_test) <- row.names(rich_Fraction_KW_MC$dif.com) # add comparison names
+
+# create a list with "homogenous groups" coded by letter
+rich_Fraction_KW_letters <- multcompLetters(rich_Fraction_KW_test, compare="<", threshold=0.05, 
+                                Letters=c(letters, LETTERS, "."), reversed = FALSE)
+
+#  Extract the values from the multcompLetters object
+rich_Fraction_KW_sigs_dataframe <-  data.frame(as.vector(names(rich_Fraction_KW_letters$Letters)), as.vector(rich_Fraction_KW_letters$Letters))
+colnames(rich_Fraction_KW_sigs_dataframe) <- c("Fraction", "siglabel")
+rich_Fraction_KW_try <- merge(rich_stats, rich_Fraction_KW_sigs_dataframe, by = "Fraction")
+
+rich_Fraction_KW_try$Fraction <-factor(rich_Fraction_KW_try$Fraction,levels=c( "B", "E"))
+
+rich_Fraction_KW_sigs <- rich_Fraction_KW_try %>%
+  select(Fraction, Fraction, siglabel) %>%
+  distinct()
+
+# finally, the plot
+pdf(file="Figures/Rplot_Richness_Fraction_boxplot.pdf", width= 5, height=5, pointsize= 14)
+alpha_title <- paste("Richness when rarefied at",min(sample_sums(physeq_dupmerge)),"reads")
+rich_Fraction_boxplot <- ggplot(rich_Fraction_KW_try, aes(x = Fraction, y = mean, fill = Fraction)) + geom_point(size = 2) +
+  geom_boxplot()  + ggtitle(alpha_title) +
+  geom_text(data = rich_Fraction_KW_sigs, aes(label = siglabel, x = Fraction, y = .95), size = 4) +
+  scale_fill_manual(name = "", limits=c("B", "E"), 
+                     values = c("B" = "grey","E" = "grey"))+
+  scale_x_discrete(breaks=c("B", "E"),
+                   labels=c("Free-living\n(n=24)","Particle-associated\n(n=23)")) + 
+  xlab("Fraction)") + ylab("Observed Richness") + theme_bw() + 
+  theme(plot.title = element_text(face="bold", size = 12),  #Set the plot title
+                                 strip.text.x = element_blank(),  #Set the facet titles on x-axis 
+                                 strip.text.y = element_blank(),  #Set the facet titles on x-axis 
+                                 strip.background = element_blank(),  #Set the facet background to no background
+                                 axis.title.x = element_text(face="bold", size=10),  #Set the x-axis title
+                                 axis.title.y = element_text(face="bold", size=10),  #Set the y-axis title
+                                 axis.text.x = element_text(angle=0, colour = "black", 
+                                                            vjust=1, hjust = 1, size=10),  #Set the x-axis labels
+                                 axis.text.y = element_text(colour = "black", size=10),  #Set the y-axis labels
+                                 legend.title = element_text(size = 8, face="bold"),  #Set the legend title 
+                                 legend.text = element_text(size = 8),  #Set the legend text
+                                 legend.position="none", #Default the legend position to the right
+                                 plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")); rich_Fraction_boxplot #top, right, bottom, left
+dev.off()
+
+## 3. richness differences based on Station
+rich_Station_KW <- kruskal.test(rich_stats$mean ~ as.factor(rich_stats$Station)) 
+print(rich_Station_KW)  # show Kruskal Wallis result
+
+# Which samples are significantly different from each other?  
+rich_Station_KW_MC <- kruskalmc(rich_stats$mean ~ as.factor(rich_stats$Station))  ## Defaults to P < 0.05
+print(rich_Station_KW_MC)
+
+# Test to find the letters to represent significance in a plot
+rich_Station_KW_test <- rich_Station_KW_MC$dif.com$difference # select logical vector
+names(rich_Station_KW_test) <- row.names(rich_Station_KW_MC$dif.com) # add comparison names
+
+# create a list with "homogenous groups" coded by letter
+rich_Station_KW_letters <- multcompLetters(rich_Station_KW_test, compare="<", threshold=0.05, 
+                                Letters=c(letters, LETTERS, "."), reversed = FALSE)
+
+#  Extract the values from the multcompLetters object
+rich_Station_KW_sigs_dataframe <-  data.frame(as.vector(names(rich_Station_KW_letters$Letters)), as.vector(rich_Station_KW_letters$Letters))
+colnames(rich_Station_KW_sigs_dataframe) <- c("Station", "siglabel")
+rich_Station_KW_try <- merge(rich_stats, rich_Station_KW_sigs_dataframe, by = "Station")
+
+rich_Station_KW_try$Station <-factor(rich_Station_KW_try$Station,levels=c( "MLB", "MM15", "MM110"))
+
+rich_Station_KW_sigs <- rich_Station_KW_try %>%
+  select(Station, Station, siglabel) %>%
+  distinct()
+
+# finally, the plot
+pdf(file="Figures/Rplot_Richness_Station_boxplot.pdf", width= 5, height=5, pointsize= 14)
+alpha_title <- paste("Richness when rarefied at",min(sample_sums(physeq_dupmerge)),"reads")
+rich_Station_boxplot <- ggplot(rich_Station_KW_try, aes(x = Station, y = mean, fill = Station)) + geom_point(size = 2) +
+  geom_boxplot()  + ggtitle(alpha_title) +
+  geom_text(data = rich_Station_KW_sigs, aes(label = siglabel, x = Station, y = .95), size = 4) +
+  scale_fill_manual(name = "", limits=c("MLB", "MM15", "MM110"), 
+                     values = c("MLB" = "grey","MM15" = "grey","MM110" = "grey"))+
+  scale_x_discrete(breaks=c("MLB", "MM15", "MM110"),
+                   labels=c("Estuary\n(n=10)","Nearshore\n(n=18)", "Offshore\n(n=19)")) + 
+  xlab("Station)") + ylab("Observed Richness") + theme_bw() + 
+  theme(plot.title = element_text(face="bold", size = 12),  #Set the plot title
+                                 strip.text.x = element_blank(),  #Set the facet titles on x-axis 
+                                 strip.text.y = element_blank(),  #Set the facet titles on x-axis 
+                                 strip.background = element_blank(),  #Set the facet background to no background
+                                 axis.title.x = element_text(face="bold", size=10),  #Set the x-axis title
+                                 axis.title.y = element_text(face="bold", size=10),  #Set the y-axis title
+                                 axis.text.x = element_text(angle=0, colour = "black", 
+                                                            vjust=1, hjust = 1, size=10),  #Set the x-axis labels
+                                 axis.text.y = element_text(colour = "black", size=10),  #Set the y-axis labels
+                                 legend.title = element_text(size = 8, face="bold"),  #Set the legend title 
+                                 legend.text = element_text(size = 8),  #Set the legend text
+                                 legend.position="none", #Default the legend position to the right
+                                 plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")); rich_Station_boxplot #top, right, bottom, left
+dev.off()
+
+## 4. richness differences based on Depth_C
+#rich_stats_off <- rich_stats[rich_stats$Station == "MM110" & rich_stats$Season == "Su", ]
+
+rich_Depth_C_KW <- kruskal.test(rich_stats$mean ~ as.factor(rich_stats$Depth_C)) 
+print(rich_Depth_C_KW)  # show Kruskal Wallis result
+
+# Which samples are significantly different from each other?  
+rich_Depth_C_KW_MC <- kruskalmc(rich_stats$mean ~ as.factor(rich_stats$Depth_C))  ## Defaults to P < 0.05
+print(rich_Depth_C_KW_MC)
+
+# Test to find the letters to represent significance in a plot
+rich_Depth_C_KW_test <- rich_Depth_C_KW_MC$dif.com$difference # select logical vector
+names(rich_Depth_C_KW_test) <- row.names(rich_Depth_C_KW_MC$dif.com) # add comparison names
+
+# create a list with "homogenous groups" coded by letter
+rich_Depth_C_KW_letters <- multcompLetters(rich_Depth_C_KW_test, compare="<", threshold=0.05, 
+                                Letters=c(letters, LETTERS, "."), reversed = FALSE)
+
+#  Extract the values from the multcompLetters object
+rich_Depth_C_KW_sigs_dataframe <-  data.frame(as.vector(names(rich_Depth_C_KW_letters$Letters)), as.vector(rich_Depth_C_KW_letters$Letters))
+colnames(rich_Depth_C_KW_sigs_dataframe) <- c("Depth_C", "siglabel")
+rich_Depth_C_KW_try <- merge(rich_stats, rich_Depth_C_KW_sigs_dataframe, by = "Depth_C")
+
+rich_Depth_C_KW_try$Depth_C <-factor(rich_Depth_C_KW_try$Depth_C,levels=c( "S", "M", "D"))
+
+rich_Depth_C_KW_sigs <- rich_Depth_C_KW_try %>%
+  select(Depth_C, Depth_C, siglabel) %>%
+  distinct()
+
+# finally, the plot
+pdf(file="Figures/Rplot_Richness_Depth_C_boxplot.pdf", width= 5, height=5, pointsize= 14)
+alpha_title <- paste("Richness when rarefied at",min(sample_sums(physeq_dupmerge)),"reads")
+rich_Depth_C_boxplot <- ggplot(rich_Depth_C_KW_try, aes(x = Depth_C, y = mean, fill = Depth_C)) + geom_point(size = 2) +
+  geom_boxplot()  + ggtitle(alpha_title) +
+  geom_text(data = rich_Depth_C_KW_sigs, aes(label = siglabel, x = Depth_C, y = .95), size = 4) +
+  scale_fill_manual(name = "", limits=c("S", "M", "D"), 
+                     values = c("S" = "grey","M" = "grey","D" = "grey"))+
+  scale_x_discrete(breaks=c("S", "M", "D"),
+                   labels=c("Surface\n(n=30)","Chla max\n(n=2)","Deep\n(n=15)")) + 
+  xlab("Depth_C)") + ylab("Observed Richness") + theme_bw() + 
+  theme(plot.title = element_text(face="bold", size = 12),  #Set the plot title
+                                 strip.text.x = element_blank(),  #Set the facet titles on x-axis 
+                                 strip.text.y = element_blank(),  #Set the facet titles on x-axis 
+                                 strip.background = element_blank(),  #Set the facet background to no background
+                                 axis.title.x = element_text(face="bold", size=10),  #Set the x-axis title
+                                 axis.title.y = element_text(face="bold", size=10),  #Set the y-axis title
+                                 axis.text.x = element_text(angle=0, colour = "black", 
+                                                            vjust=1, hjust = 1, size=10),  #Set the x-axis labels
+                                 axis.text.y = element_text(colour = "black", size=10),  #Set the y-axis labels
+                                 legend.title = element_text(size = 8, face="bold"),  #Set the legend title 
+                                 legend.text = element_text(size = 8),  #Set the legend text
+                                 legend.position="none", #Default the legend position to the right
+                                 plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")); rich_Depth_C_boxplot #top, right, bottom, left
+dev.off()
+```
+
+```{r evenness plots} 
+###EVENNESS PLOTS
+## 1. evenness differences based on Season
+even_Season_KW <- kruskal.test(simps_even$mean ~ as.factor(simps_even$Season)) 
+print(even_Season_KW)  # show Kruskal Wallis result
+
+# Which samples are significantly different from each other?  
+even_Season_KW_MC <- kruskalmc(simps_even$mean ~ as.factor(simps_even$Season))  ## Defaults to P < 0.05
+print(even_Season_KW_MC)
+
+# Test to find the letters to represent significance in a plot
+even_Season_KW_test <- even_Season_KW_MC$dif.com$difference # select logical vector
+names(even_Season_KW_test) <- row.names(even_Season_KW_MC$dif.com) # add comparison names
+
+# create a list with "homogenous groups" coded by letter
+even_Season_KW_letters <- multcompLetters(even_Season_KW_test, compare="<", threshold=0.05, 
+                                Letters=c(letters, LETTERS, "."), reversed = FALSE)
+
+#  Extract the values from the multcompLetters object
+even_Season_KW_sigs_dataframe <-  data.frame(as.vector(names(even_Season_KW_letters$Letters)), as.vector(even_Season_KW_letters$Letters))
+colnames(even_Season_KW_sigs_dataframe) <- c("Season", "siglabel")
+even_Season_KW_try <- merge(simps_even, even_Season_KW_sigs_dataframe, by = "Season")
+
+even_Season_KW_try$Season <-factor(even_Season_KW_try$Season,levels=c( "Sp", "Su", "Fa"))
+
+even_Season_KW_sigs <- even_Season_KW_try %>%
+  select(Season, Season, siglabel) %>%
+  distinct()
+
+# finally, the plot
+pdf(file="Figures/Rplot_Evenness_Season_boxplot.pdf", width= 5, height=5, pointsize= 14)
+alpha_title <- paste("Evenness when rarefied at",min(sample_sums(physeq_dupmerge)),"reads")
+even_Season_boxplot <- ggplot(even_Season_KW_try, aes(x = Season, y = mean, fill = Season)) + geom_point(size = 2) +
+  geom_boxplot()  + ggtitle(alpha_title) +
+  geom_text(data = even_Season_KW_sigs, aes(label = siglabel, x = Season, y = 0), size = 4) +
+  scale_fill_manual(name = "", limits=c("Sp", "Su", "Fa"), 
+                     values = c("Sp" = "grey","Su" = "grey","Fa" = "grey"))+
+  scale_x_discrete(breaks=c("Sp", "Su", "Fa"),
+                   labels=c("Spring\n(n=14)","Summer\n(n=17)", "Fall\n(n=16)")) + 
+  xlab("Season)") + ylab("Simpson's Evenness") + theme_bw() + 
+  theme(plot.title = element_text(face="bold", size = 12),  #Set the plot title
+                                 strip.text.x = element_blank(),  #Set the facet titles on x-axis 
+                                 strip.text.y = element_blank(),  #Set the facet titles on x-axis 
+                                 strip.background = element_blank(),  #Set the facet background to no background
+                                 axis.title.x = element_text(face="bold", size=10),  #Set the x-axis title
+                                 axis.title.y = element_text(face="bold", size=10),  #Set the y-axis title
+                                 axis.text.x = element_text(angle=0, colour = "black", 
+                                                            vjust=1, hjust = 1, size=10),  #Set the x-axis labels
+                                 axis.text.y = element_text(colour = "black", size=10),  #Set the y-axis labels
+                                 legend.title = element_text(size = 8, face="bold"),  #Set the legend title 
+                                 legend.text = element_text(size = 8),  #Set the legend text
+                                 legend.position="none", #Default the legend position to the right
+                                 plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")); even_Season_boxplot #top, right, bottom, left
+dev.off()
+
+## 2. Evenness differences based on Fraction
+even_Fraction_KW <- kruskal.test(simps_even$mean ~ as.factor(simps_even$Fraction)) 
+print(even_Fraction_KW)  # show Kruskal Wallis result
+
+# Which samples are significantly different from each other?  
+even_Fraction_KW_MC <- kruskalmc(simps_even$mean ~ as.factor(simps_even$Fraction))  ## Defaults to P < 0.05
+print(even_Fraction_KW_MC)
+
+# Test to find the letters to represent significance in a plot
+even_Fraction_KW_test <- even_Fraction_KW_MC$dif.com$difference # select logical vector
+names(even_Fraction_KW_test) <- row.names(even_Fraction_KW_MC$dif.com) # add comparison names
+
+# create a list with "homogenous groups" coded by letter
+even_Fraction_KW_letters <- multcompLetters(even_Fraction_KW_test, compare="<", threshold=0.05, 
+                                Letters=c(letters, LETTERS, "."), reversed = FALSE)
+
+#  Extract the values from the multcompLetters object
+even_Fraction_KW_sigs_dataframe <-  data.frame(as.vector(names(even_Fraction_KW_letters$Letters)), as.vector(even_Fraction_KW_letters$Letters))
+colnames(even_Fraction_KW_sigs_dataframe) <- c("Fraction", "siglabel")
+even_Fraction_KW_try <- merge(simps_even, even_Fraction_KW_sigs_dataframe, by = "Fraction")
+
+even_Fraction_KW_try$Fraction <-factor(even_Fraction_KW_try$Fraction,levels=c( "B", "E"))
+
+even_Fraction_KW_sigs <- even_Fraction_KW_try %>%
+  select(Fraction, Fraction, siglabel) %>%
+  distinct()
+
+# finally, the plot
+pdf(file="Figures/Rplot_Evenness_Fraction_boxplot.pdf", width= 5, height=5, pointsize= 14)
+alpha_title <- paste("Evenness when rarefied at",min(sample_sums(physeq_dupmerge)),"reads")
+even_Fraction_boxplot <- ggplot(even_Fraction_KW_try, aes(x = Fraction, y = mean, fill = Fraction)) + geom_point(size = 2) +
+  geom_boxplot()  + ggtitle(alpha_title) +
+  geom_text(data = even_Fraction_KW_sigs, aes(label = siglabel, x = Fraction, y = 0), size = 4) +
+  scale_fill_manual(name = "", limits=c("B", "E"), 
+                     values = c("B" = "grey","E" = "grey"))+
+  scale_x_discrete(breaks=c("B", "E"),
+                   labels=c("Free-living\n(n=24)","Particle-associated\n(n=23)")) + 
+  xlab("Fraction)") + ylab("Simpson's Evenness") + theme_bw() + 
+  theme(plot.title = element_text(face="bold", size = 12),  #Set the plot title
+                                 strip.text.x = element_blank(),  #Set the facet titles on x-axis 
+                                 strip.text.y = element_blank(),  #Set the facet titles on x-axis 
+                                 strip.background = element_blank(),  #Set the facet background to no background
+                                 axis.title.x = element_text(face="bold", size=10),  #Set the x-axis title
+                                 axis.title.y = element_text(face="bold", size=10),  #Set the y-axis title
+                                 axis.text.x = element_text(angle=0, colour = "black", 
+                                                            vjust=1, hjust = 1, size=10),  #Set the x-axis labels
+                                 axis.text.y = element_text(colour = "black", size=10),  #Set the y-axis labels
+                                 legend.title = element_text(size = 8, face="bold"),  #Set the legend title 
+                                 legend.text = element_text(size = 8),  #Set the legend text
+                                 legend.position="none", #Default the legend position to the right
+                                 plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")); even_Fraction_boxplot #top, right, bottom, left
+dev.off()
+
+## 3. Evenness differences based on Station
+even_Station_KW <- kruskal.test(simps_even$mean ~ as.factor(simps_even$Station)) 
+print(even_Station_KW)  # show Kruskal Wallis result
+
+# Which samples are significantly different from each other?  
+even_Station_KW_MC <- kruskalmc(simps_even$mean ~ as.factor(simps_even$Station))  ## Defaults to P < 0.05
+print(even_Station_KW_MC)
+
+# Test to find the letters to represent significance in a plot
+even_Station_KW_test <- even_Station_KW_MC$dif.com$difference # select logical vector
+names(even_Station_KW_test) <- row.names(even_Station_KW_MC$dif.com) # add comparison names
+
+# create a list with "homogenous groups" coded by letter
+even_Station_KW_letters <- multcompLetters(even_Station_KW_test, compare="<", threshold=0.05, 
+                                Letters=c(letters, LETTERS, "."), reversed = FALSE)
+
+#  Extract the values from the multcompLetters object
+even_Station_KW_sigs_dataframe <-  data.frame(as.vector(names(even_Station_KW_letters$Letters)), as.vector(even_Station_KW_letters$Letters))
+colnames(even_Station_KW_sigs_dataframe) <- c("Station", "siglabel")
+even_Station_KW_try <- merge(simps_even, even_Station_KW_sigs_dataframe, by = "Station")
+
+even_Station_KW_try$Station <-factor(even_Station_KW_try$Station,levels=c( "MLB", "MM15", "MM110"))
+
+even_Station_KW_sigs <- even_Station_KW_try %>%
+  select(Station, Station, siglabel) %>%
+  distinct()
+
+# finally, the plot
+pdf(file="Figures/Rplot_Evenness_Station_boxplot.pdf", width= 5, height=5, pointsize= 14)
+alpha_title <- paste("Evenness when rarefied at",min(sample_sums(physeq_dupmerge)),"reads")
+even_Station_boxplot <- ggplot(even_Station_KW_try, aes(x = Station, y = mean, fill = Station)) + geom_point(size = 2) +
+  geom_boxplot()  + ggtitle(alpha_title) +
+  geom_text(data = even_Station_KW_sigs, aes(label = siglabel, x = Station, y = 0), size = 4) +
+  scale_fill_manual(name = "", limits=c("MLB", "MM15", "MM110"), 
+                     values = c("MLB" = "grey","MM15" = "grey","MM110" = "grey"))+
+  scale_x_discrete(breaks=c("MLB", "MM15", "MM110"),
+                   labels=c("Estuary\n(n=10)","Nearshore\n(n=18)", "Offshore\n(n=19)")) + 
+  xlab("Station)") + ylab("Simpson's Evenness") + theme_bw() + 
+  theme(plot.title = element_text(face="bold", size = 12),  #Set the plot title
+                                 strip.text.x = element_blank(),  #Set the facet titles on x-axis 
+                                 strip.text.y = element_blank(),  #Set the facet titles on x-axis 
+                                 strip.background = element_blank(),  #Set the facet background to no background
+                                 axis.title.x = element_text(face="bold", size=10),  #Set the x-axis title
+                                 axis.title.y = element_text(face="bold", size=10),  #Set the y-axis title
+                                 axis.text.x = element_text(angle=0, colour = "black", 
+                                                            vjust=1, hjust = 1, size=10),  #Set the x-axis labels
+                                 axis.text.y = element_text(colour = "black", size=10),  #Set the y-axis labels
+                                 legend.title = element_text(size = 8, face="bold"),  #Set the legend title 
+                                 legend.text = element_text(size = 8),  #Set the legend text
+                                 legend.position="none", #Default the legend position to the right
+                                 plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")); even_Station_boxplot #top, right, bottom, left
+dev.off()
+
+## 4. Evenness differences based on Depth_C
+#simps_even_off <- simps_even[simps_even$Station == "MM110" & simps_even$Season == "Su", ]
+
+even_Depth_C_KW <- kruskal.test(simps_even$mean ~ as.factor(simps_even$Depth_C)) 
+print(even_Depth_C_KW)  # show Kruskal Wallis result
+
+# Which samples are significantly different from each other?  
+even_Depth_C_KW_MC <- kruskalmc(simps_even$mean ~ as.factor(simps_even$Depth_C))  ## Defaults to P < 0.05
+print(even_Depth_C_KW_MC)
+
+# Test to find the letters to represent significance in a plot
+even_Depth_C_KW_test <- even_Depth_C_KW_MC$dif.com$difference # select logical vector
+names(even_Depth_C_KW_test) <- row.names(even_Depth_C_KW_MC$dif.com) # add comparison names
+
+# create a list with "homogenous groups" coded by letter
+even_Depth_C_KW_letters <- multcompLetters(even_Depth_C_KW_test, compare="<", threshold=0.05, 
+                                Letters=c(letters, LETTERS, "."), reversed = FALSE)
+
+#  Extract the values from the multcompLetters object
+even_Depth_C_KW_sigs_dataframe <-  data.frame(as.vector(names(even_Depth_C_KW_letters$Letters)), as.vector(even_Depth_C_KW_letters$Letters))
+colnames(even_Depth_C_KW_sigs_dataframe) <- c("Depth_C", "siglabel")
+even_Depth_C_KW_try <- merge(simps_even, even_Depth_C_KW_sigs_dataframe, by = "Depth_C")
+
+even_Depth_C_KW_try$Depth_C <-factor(even_Depth_C_KW_try$Depth_C,levels=c( "S", "M", "D"))
+
+even_Depth_C_KW_sigs <- even_Depth_C_KW_try %>%
+  select(Depth_C, Depth_C, siglabel) %>%
+  distinct()
+
+# finally, the plot
+pdf(file="Figures/Rplot_Evenness_Depth_C_boxplot.pdf", width= 5, height=5, pointsize= 14)
+alpha_title <- paste("Evenness when rarefied at",min(sample_sums(physeq_dupmerge)),"reads")
+even_Depth_C_boxplot <- ggplot(even_Depth_C_KW_try, aes(x = Depth_C, y = mean, fill = Depth_C)) + geom_point(size = 2) +
+  geom_boxplot()  + ggtitle(alpha_title) +
+  geom_text(data = even_Depth_C_KW_sigs, aes(label = siglabel, x = Depth_C, y = 0), size = 4) +
+  scale_fill_manual(name = "", limits=c("S", "M", "D"), 
+                     values = c("S" = "grey","M" = "grey","D" = "grey"))+
+  scale_x_discrete(breaks=c("S", "M", "D"),
+                   labels=c("Surface\n(n=30)","Chla max\n(n=2)","Deep\n(n=15)")) + 
+  xlab("Depth_C)") + ylab("Simpson's Evenness") + theme_bw() + 
+  theme(plot.title = element_text(face="bold", size = 12),  #Set the plot title
+                                 strip.text.x = element_blank(),  #Set the facet titles on x-axis 
+                                 strip.text.y = element_blank(),  #Set the facet titles on x-axis 
+                                 strip.background = element_blank(),  #Set the facet background to no background
+                                 axis.title.x = element_text(face="bold", size=10),  #Set the x-axis title
+                                 axis.title.y = element_text(face="bold", size=10),  #Set the y-axis title
+                                 axis.text.x = element_text(angle=0, colour = "black", 
+                                                            vjust=1, hjust = 1, size=10),  #Set the x-axis labels
+                                 axis.text.y = element_text(colour = "black", size=10),  #Set the y-axis labels
+                                 legend.title = element_text(size = 8, face="bold"),  #Set the legend title 
+                                 legend.text = element_text(size = 8),  #Set the legend text
+                                 legend.position="none", #Default the legend position to the right
+                                 plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")); even_Depth_C_boxplot #top, right, bottom, left
+dev.off()
+
+```
+
+### Table + Figure 2: PCoA, PERMANOVA
+```{r adonis}
+# Calculate bray curtis
+physeq.bray <- phyloseq::distance(physeq = physeq.scale, method = "bray")
+
+### Let's run ADONIS using Michelle Berry's MicrobeMiseq function --- FOR TABLE 2
+phyloseq_to_adonis(physeq.scale, distmat = physeq.bray, dist = "bray","Fraction")
+phyloseq_to_adonis(physeq.scale, distmat = physeq.bray, dist = "bray","Season")
+phyloseq_to_adonis(physeq.scale, distmat = physeq.bray, dist = "bray","Station")
+phyloseq_to_adonis(physeq.scale, distmat = physeq.bray, dist = "bray","Depth_C")
+phyloseq_to_adonis(physeq.scale, distmat = physeq.bray, dist = "bray","DayNight")
+phyloseq_to_adonis(physeq.scale, distmat = physeq.bray, dist = "bray","Lake")
+formula<-c("Fraction","Season","Lake","Station","Depth_C","DayNight")
+phyloseq_to_adonis(physeq.scale, distmat = physeq.bray, dist = "bray",formula)
+
+# Prune out rare taxa
+# Keep OTUs above average relative abundance of 7 reads (0.01%)
+a <- apply(otu_table(physeq.scale), MARGIN = 1, function(x) {mean(x)} )
+keep <- a > 7
+physeq.prune <- prune_taxa(keep, physeq.scale)
+ntaxa(physeq.prune) 
+
+# Calculate Sorensen
+physeq.sor <- phyloseq::distance(physeq = physeq.prune, method = "bray", binary=TRUE)
+
+### Let's run ADONIS using Michelle Berry's MicrobeMiseq function --- FOR TABLE 2
+phyloseq_to_adonis(physeq.scale, distmat = physeq.sor, dist = "sorensen","Fraction")
+phyloseq_to_adonis(physeq.scale, distmat = physeq.sor, dist = "sorensen","Season")
+phyloseq_to_adonis(physeq.scale, distmat = physeq.sor, dist = "sorensen","Station")
+phyloseq_to_adonis(physeq.scale, distmat = physeq.sor, dist = "sorensen","Depth_C")
+phyloseq_to_adonis(physeq.scale, distmat = physeq.sor, dist = "sorensen","DayNight")
+phyloseq_to_adonis(physeq.scale, distmat = physeq.sor, dist = "sorensen","Lake")
+formula<-c("Fraction","Season","Lake","Station","Depth_C","DayNight")
+phyloseq_to_adonis(physeq.scale, distmat = physeq.sor, dist = "sorensen",formula)
+```
+
+```{r pcoa bray-curtis}
+# Betadiv pcoa Bray-Curtis DNA only 
+physeq.pcoa <-
+  ordinate(
+    physeq = physeq.scale,
+    method = "PCoA",
+    distance = "bray"
+  )
+
+physeq.pcoa.vectors <- data.frame(physeq.pcoa$vectors[, 1:4])
+physeq.pcoa.vectors$Duplicates <- row.names(physeq.pcoa.vectors)
+physeq.pcoa.df <- merge(physeq.pcoa.vectors,data.frame(duplicate_metadata),by="Duplicates")
+for(i in 1:length(physeq.pcoa.df$Season)){
+  physeq.pcoa.df$Depth_Seas[i]<-paste(as.character(physeq.pcoa.df$Depth_C[i]),
+                                  as.character(physeq.pcoa.df$Season[i]))}
+bray_values_DNA <- physeq.pcoa$values
+bray_rel_eigens_DNA <- bray_values_DNA$Relative_eig
+bray_rel_eigen1_DNA <- bray_rel_eigens_DNA[1]
+bray_rel_eigen1_percent_DNA <- round(bray_rel_eigen1_DNA * 100, digits = 1)
+bray_rel_eigen2_DNA <- bray_rel_eigens_DNA[2]
+bray_rel_eigen2_percent_DNA <- round(bray_rel_eigen2_DNA * 100, digits = 1)
+bray_rel_eigen3_DNA <- bray_rel_eigens_DNA[3]
+bray_rel_eigen3_percent_DNA <- round(bray_rel_eigen3_DNA * 100, digits = 1)
+bray_rel_eigen4_DNA <- bray_rel_eigens_DNA[4]
+bray_rel_eigen4_percent_DNA <- round(bray_rel_eigen4_DNA * 100, digits = 1)
+bray_axis1_DNA <- paste("PCoA1:",bray_rel_eigen1_percent_DNA,"%")
+bray_axis2_DNA <- paste("PCoA2:",bray_rel_eigen2_percent_DNA,"%")
+bray_axis3_DNA <- paste("PCoA3:",bray_rel_eigen3_percent_DNA,"%")
+bray_axis4_DNA <- paste("PCoA4:",bray_rel_eigen4_percent_DNA,"%")
+
+PCoA_DNA_title <- paste("PCoA (Bray-Curtis distance) when considering",ntaxa(physeq.scale),"OTUs")
+
+pdf(file="Figures/Rplot_PCOA12_BC_DNA.pdf", width= 20, height=15, pointsize= 14)
+pcoa_BC12_DNA <- ggplot(physeq.pcoa.df, aes(Axis.1, Axis.2, color = Season, shape = Station, size = Fraction, fill = Depth_Seas)) +
+  xlab(bray_axis1_DNA) + ylab(bray_axis2_DNA) + ggtitle(PCoA_DNA_title) +
+  geom_point(alpha=0.9) + theme_bw() + #ylim(1, -1) + xlim(1, -1) +
+  scale_color_manual(name = "season", breaks=c("Sp", "Su",  "Fa"),
+                     labels = c("Spring", "Summer",  "Fall"), 
+                     values = c("Fa" = "mediumblue", "Sp" = "darkgreen", "Su" = "red")) +
+  scale_shape_manual(name = "station", breaks = c("MLB", "MM15",  "MM110"), 
+                     labels = c("MLB", "M15",  "M110"),
+                     values = c("MLB" = 21, "MM15" = 22, "MM110" = 24)) +
+  scale_size_manual(name = "fraction", breaks = c("E", "B"), 
+                     labels = c("Particle", "Free"),
+                     values = c("B" = 5, "E" = 10)) +
+  scale_fill_manual(name = "depth", breaks = c("D Sp", "D Su", "D Fa", "M Su", "S Sp", "S Su", "S Fa"), 
+                     labels = c("Deep","Deep","Deep", "Chla max", "Surface", "Surface", "Surface"),
+                     values = c("D Fa" = "mediumblue", "D Sp" = "darkgreen", "D Su" = "red", "M Su" = "orange", "S Sp" = "white", "S Su" = "white", "S Fa" = "white")) +
+  theme(axis.text.x = element_text(colour="black", vjust=0.5, size=14), 
+        axis.text.y = element_text(colour="black", vjust=0.5, size=14),
+        axis.title.x = element_text(face="bold", size=16),
+        axis.title.y = element_text(face="bold", size=16),
+        legend.title = element_text(size=12, face="bold"),
+        legend.text = element_text(size = 12),
+        ###LEGEND TOP RIGHT CORNER
+        legend.position = "right"); pcoa_BC12_DNA
+  dev.off()
+
+pdf(file="Figures/Rplot_PCOA13_BC_DNA.pdf", width= 20, height=15, pointsize= 14)
+pcoa_BC13_DNA <- ggplot(physeq.pcoa.df, aes(Axis.1, Axis.3, color = Season, shape = Station, size = Fraction, fill = Depth_Seas)) +
+  xlab(bray_axis1_DNA) + ylab(bray_axis3_DNA) + ggtitle(PCoA_DNA_title) +
+  geom_point(alpha=0.9) + theme_bw() + #ylim(1, -1) + xlim(1, -1) +
+  scale_color_manual(name = "season", breaks=c("Sp", "Su",  "Fa"),
+                     labels = c("Spring", "Summer",  "Fall"), 
+                     values = c("Fa" = "mediumblue", "Sp" = "darkgreen", "Su" = "red")) +
+  scale_shape_manual(name = "station", breaks = c("MLB", "MM15",  "MM110"), 
+                     labels = c("MLB", "M15",  "M110"),
+                     values = c("MLB" = 21, "MM15" = 22, "MM110" = 24)) +
+  scale_size_manual(name = "fraction", breaks = c("E", "B"), 
+                     labels = c("Particle", "Free"),
+                     values = c("B" = 5, "E" = 10)) +
+  scale_fill_manual(name = "depth", breaks = c("D Sp", "D Su", "D Fa", "M Su", "S Sp", "S Su", "S Fa"), 
+                     labels = c("Deep","Deep","Deep", "Chla max", "Surface", "Surface", "Surface"),
+                     values = c("D Fa" = "mediumblue", "D Sp" = "darkgreen", "D Su" = "red", "M Su" = "orange", "S Sp" = "white", "S Su" = "white", "S Fa" = "white")) +
+  theme(axis.text.x = element_text(colour="black", vjust=0.5, size=14), 
+        axis.text.y = element_text(colour="black", vjust=0.5, size=14),
+        axis.title.x = element_text(face="bold", size=16),
+        axis.title.y = element_text(face="bold", size=16),
+        legend.title = element_text(size=12, face="bold"),
+        legend.text = element_text(size = 12),
+        ###LEGEND TOP RIGHT CORNER
+        legend.position = "right"); pcoa_BC13_DNA
+  dev.off()
+
+```
+
+```{r pcoa Sørensen after removal of OTU < 0.01% on average}
+# Prune out rare taxa
+# Keep OTUs above average relative abundance of 7 reads (0.01%)
+a <- apply(otu_table(physeq.scale), MARGIN = 1, function(x) {mean(x)} )
+keep <- a > 7
+physeq.prune <- prune_taxa(keep, physeq.scale)
+ntaxa(physeq.prune) 
+
+# Betadiv pcoa Sørensen DNA only 
+physeq.pcoa.sor <-
+  ordinate(
+    physeq = physeq.prune,
+    method = "PCoA",
+    distance = "bray",
+    binary = TRUE
+  )
+
+physeq.pcoa.sor.vectors <- data.frame(physeq.pcoa.sor$vectors[, 1:4])
+physeq.pcoa.sor.vectors$Duplicates <- row.names(physeq.pcoa.sor.vectors)
+physeq.pcoa.sor.df <- merge(physeq.pcoa.sor.vectors,data.frame(duplicate_metadata),by="Duplicates")
+for(i in 1:length(physeq.pcoa.sor.df$Season)){
+  physeq.pcoa.sor.df$Depth_Seas[i]<-paste(as.character(physeq.pcoa.sor.df$Depth_C[i]),
+                                  as.character(physeq.pcoa.sor.df$Season[i]))}
+sor_values_DNA <- physeq.pcoa.sor$values
+sor_rel_eigens_DNA <- sor_values_DNA$Relative_eig
+sor_rel_eigen1_DNA <- sor_rel_eigens_DNA[1]
+sor_rel_eigen1_percent_DNA <- round(sor_rel_eigen1_DNA * 100, digits = 1)
+sor_rel_eigen2_DNA <- sor_rel_eigens_DNA[2]
+sor_rel_eigen2_percent_DNA <- round(sor_rel_eigen2_DNA * 100, digits = 1)
+sor_rel_eigen3_DNA <- sor_rel_eigens_DNA[3]
+sor_rel_eigen3_percent_DNA <- round(sor_rel_eigen3_DNA * 100, digits = 1)
+sor_rel_eigen4_DNA <- sor_rel_eigens_DNA[4]
+sor_rel_eigen4_percent_DNA <- round(sor_rel_eigen4_DNA * 100, digits = 1)
+sor_axis1_DNA <- paste("PCoA1:",sor_rel_eigen1_percent_DNA,"%")
+sor_axis2_DNA <- paste("PCoA2:",sor_rel_eigen2_percent_DNA,"%")
+sor_axis3_DNA <- paste("PCoA3:",sor_rel_eigen3_percent_DNA,"%")
+sor_axis4_DNA <- paste("PCoA4:",sor_rel_eigen4_percent_DNA,"%")
+
+PCoA_Sor_DNA_title <- paste("PCoA (Sørensen distance) when considering",ntaxa(physeq.prune),"OTUs")
+
+pdf(file="Figures/Rplot_PCOA12_SOR_DNA.pdf", width= 20, height=15, pointsize= 14)
+pcoa_SOR12_DNA <- ggplot(physeq.pcoa.sor.df, aes(-Axis.1, -Axis.2, color = Season, shape = Station, size = Fraction, fill = Depth_Seas)) +
+  xlab(sor_axis1_DNA) + ylab(sor_axis2_DNA) + ggtitle(PCoA_Sor_DNA_title) +
+  geom_point(alpha=0.9) + theme_bw() + #ylim(1, -1) + xlim(1, -1) +
+  scale_color_manual(name = "season", breaks=c("Sp", "Su",  "Fa"),
+                     labels = c("Spring", "Summer",  "Fall"), 
+                     values = c("Fa" = "mediumblue", "Sp" = "darkgreen", "Su" = "red")) +
+  scale_shape_manual(name = "station", breaks = c("MLB", "MM15",  "MM110"), 
+                     labels = c("MLB", "M15",  "M110"),
+                     values = c("MLB" = 21, "MM15" = 22, "MM110" = 24)) +
+  scale_size_manual(name = "fraction", breaks = c("E", "B"), 
+                     labels = c("Particle", "Free"),
+                     values = c("B" = 5, "E" = 10)) +
+  scale_fill_manual(name = "depth", breaks = c("D Sp", "D Su", "D Fa", "M Su", "S Sp", "S Su", "S Fa"), 
+                     labels = c("Deep","Deep","Deep", "Chla max", "Surface", "Surface", "Surface"),
+                     values = c("D Fa" = "mediumblue", "D Sp" = "darkgreen", "D Su" = "red", "M Su" = "orange", "S Sp" = "white", "S Su" = "white", "S Fa" = "white")) +
+  theme(axis.text.x = element_text(colour="black", vjust=0.5, size=14), 
+        axis.text.y = element_text(colour="black", vjust=0.5, size=14),
+        axis.title.x = element_text(face="bold", size=16),
+        axis.title.y = element_text(face="bold", size=16),
+        legend.title = element_text(size=12, face="bold"),
+        legend.text = element_text(size = 12),
+        ###LEGEND TOP RIGHT CORNER
+        legend.position = "right"); pcoa_SOR12_DNA
+  dev.off()
+
+pdf(file="Figures/Rplot_PCOA13_SOR_DNA.pdf", width= 20, height=15, pointsize= 14)
+pcoa_SOR13_DNA <- ggplot(physeq.pcoa.sor.df, aes(-Axis.1, -Axis.3, color = Season, shape = Station, size = Fraction, fill = Depth_Seas)) +
+  xlab(sor_axis1_DNA) + ylab(sor_axis3_DNA) + ggtitle(PCoA_Sor_DNA_title) +
+  geom_point(alpha=0.9) + theme_bw() + #ylim(1, -1) + xlim(1, -1) +
+  scale_color_manual(name = "season", breaks=c("Sp", "Su",  "Fa"),
+                     labels = c("Spring", "Summer",  "Fall"), 
+                     values = c("Fa" = "mediumblue", "Sp" = "darkgreen", "Su" = "red")) +
+  scale_shape_manual(name = "station", breaks = c("MLB", "MM15",  "MM110"), 
+                     labels = c("MLB", "M15",  "M110"),
+                     values = c("MLB" = 21, "MM15" = 22, "MM110" = 24)) +
+  scale_size_manual(name = "fraction", breaks = c("E", "B"), 
+                     labels = c("Particle", "Free"),
+                     values = c("B" = 5, "E" = 10)) +
+  scale_fill_manual(name = "depth", breaks = c("D Sp", "D Su", "D Fa", "M Su", "S Sp", "S Su", "S Fa"), 
+                     labels = c("Deep","Deep","Deep", "Chla max", "Surface", "Surface", "Surface"),
+                     values = c("D Fa" = "mediumblue", "D Sp" = "darkgreen", "D Su" = "red", "M Su" = "orange", "S Sp" = "white", "S Su" = "white", "S Fa" = "white")) +
+  theme(axis.text.x = element_text(colour="black", vjust=0.5, size=14), 
+        axis.text.y = element_text(colour="black", vjust=0.5, size=14),
+        axis.title.x = element_text(face="bold", size=16),
+        axis.title.y = element_text(face="bold", size=16),
+        legend.title = element_text(size=12, face="bold"),
+        legend.text = element_text(size = 12),
+        ###LEGEND TOP RIGHT CORNER
+        legend.position = "right"); pcoa_SOR13_DNA
+  dev.off()
+
+```
+
+##Figure 3: cyano, mixo, hetero
+```{r alpha diversity metrics calculation}
+
+```
+
+## Figure 4: differentially abundant taxa (PA and FL separately) TO DO: deseqs, then plot most abundant ones with largest effects size as in Michelle's ISMEJ paper?
+```{r Deseq analysis MLB vs LM}
+mean(sample_sums(physeq_dupmerge))
+# Keep OTUs above average relative abundance of 33 reads (0.01% before scaling) for use with deseq 
+a <- apply(otu_table(physeq_dupmerge), MARGIN = 1, function(x) {mean(x)} )
+keep <- a > 330
+physeq_dupmerge.prune <- prune_taxa(keep, physeq_dupmerge)
+ntaxa(physeq_dupmerge.prune) 
+
+# Convert to deseq object
+physeq_dupmerge.prune.deseq <- phyloseq_to_deseq2(physeq_dupmerge.prune, ~Season+Fraction+Depth_C+Lake)
+physeq_dupmerge.prune.deseq = DESeq(physeq_dupmerge.prune.deseq, test = "Wald", fitType = "parametric", betaPrior=FALSE)
+
+# Summarize results
+res = data.frame(results(physeq_dupmerge.prune.deseq, cooksCutoff = FALSE))
+res = data.frame(OTU = row.names(res), res)
+alpha = 0.01
+sigtab <-
+  res %>%
+    filter(padj < alpha) 
+sigtab.LMvsMLB <- cbind(sigtab, 
+  as(tax_table(physeq_dupmerge.prune)[sigtab$OTU, ], "matrix"))
+
+# Change genus levels so organized by phylum
+sigtab.LMvsMLB <- arrange(sigtab.LMvsMLB, Phylum)
+sigtab.LMvsMLB$Genus <- factor(sigtab.LMvsMLB$Genus, 
+  levels = unique(sigtab.LMvsMLB$Genus))
+# Plot
+ggplot(sigtab.LMvsMLB, 
+  aes(x = Phylum, y = log2FoldChange, color = Phylum)) + 
+  geom_point() + 
+  theme(
+    axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1, size = 10),
+    legend.position = "none"
+  ) 
+
+
+phylum.colors<-group.colors
+
+# deseq without pruning low abundance - otu level - per fraction - PA - no scaling (done by DEseq2!)
+raw_merged_PA <- subset_samples(raw_merged_toptaxa, Fraction != "B")
+deseq_otu_DNAcDNA_PA_raw <- deSEQ_noprune(raw_merged_PA, ~ DNA)
+deseq_otu_DNAcDNA_PA_raw$plotvalue <- as.vector(as.numeric(taxa_sums(raw_merged_PA)/sum(sample_sums(raw_merged_PA))*100)^.25) # abundance scaled to optimize gradient of glyph sizes in image
+deseq_otu_DNAcDNA_PA_raw$sig <- as.factor((deseq_otu_DNAcDNA_PA_raw$padj<0.01)*1)
+deseq_otu_DNAcDNA_plot_PA_raw <- plot_deSEQ(deseq_otu_DNAcDNA_PA_raw, "OTU cDNA:DNA PA samples")
+deseq_otu_DNAcDNA_plot_PA_raw
+
+# deseq without pruning low abundance - otu level - per fraction - FL - no scaling (done by DEseq2!)
+raw_merged_FL <- subset_samples(raw_merged_toptaxa, Fraction != "E")
+deseq_otu_DNAcDNA_FL_raw <- deSEQ_noprune(raw_merged_FL, ~ DNA)
+deseq_otu_DNAcDNA_FL_raw$plotvalue <- as.vector(as.numeric(taxa_sums(raw_merged_FL)/sum(sample_sums(raw_merged_FL))*100)^.25)
+deseq_otu_DNAcDNA_FL_raw$sig <- as.factor((deseq_otu_DNAcDNA_FL_raw$padj<0.01)*1)
+deseq_otu_DNAcDNA_plot_FL_raw <- plot_deSEQ(deseq_otu_DNAcDNA_FL_raw, "OTU cDNA:DNA FL samples")
+deseq_otu_DNAcDNA_plot_FL_raw
+
+#plot together --- FOR FIGURE 4
+Phylum_temp <- as.character(deseq_otu_DNAcDNA_PA_raw$Phylum)
+for  (i in 1:length(Phylum_temp)){ 
+  Phylum_temp[i] = paste(Phylum_temp[i],"PA",sep=" ")
+} 
+deseq_otu_DNAcDNA_PA_raw$Phylum_plot <- Phylum_temp
+
+Phylum_temp <- as.character(deseq_otu_DNAcDNA_FL_raw$Phylum)
+for  (i in 1:length(Phylum_temp)){ 
+  Phylum_temp[i] = paste(Phylum_temp[i],"FL",sep=" ")
+} 
+deseq_otu_DNAcDNA_FL_raw$Phylum_plot <- Phylum_temp
+
+deseq_otu_DNAcDNA_FLandPA_raw<-rbind(deseq_otu_DNAcDNA_FL_raw,deseq_otu_DNAcDNA_PA_raw)
+
+pdf(file="Figures/Rplot_cDvsD_FL_noscale_top200.pdf", width= 10, height=15, pointsize= 14, useDingbats=FALSE)
+deseq_otu_DNAcDNA_FLandPA_raw$Phylum_plot <-factor(deseq_otu_DNAcDNA_FLandPA_raw$Phylum_plot,levels=c("Proteobacteria FL","Proteobacteria PA","Alphaproteobacteria FL","Alphaproteobacteria PA","Betaproteobacteria FL","Betaproteobacteria PA","Gammaproteobacteria FL","Gammaproteobacteria PA","Deltaproteobacteria FL","Deltaproteobacteria PA","Bacteroidetes FL","Bacteroidetes PA","Cytophagia FL","Cytophagia PA","Flavobacteria FL","Flavobacteria PA","Sphingobacteria FL","Sphingobacteria PA","Actinobacteria FL","Actinobacteria PA","Cyanobacteria FL","Cyanobacteria PA","Verrucomicrobia FL","Verrucomicrobia PA","Planctomycetes FL","Planctomycetes PA","Chloroflexi FL","Chloroflexi PA","Acidobacteria FL","Acidobacteria PA","Armatimonadetes FL","Armatimonadetes PA","Chlorobi FL","Chlorobi PA","Firmicutes FL","Firmicutes PA","Gemmatimonadetes FL","Gemmatimonadetes PA","unclassified FL","unclassified PA"))
+deseq_otu_DNAcDNA_plot_FLandPA_raw <- plot_deSEQ_combo(deseq_otu_DNAcDNA_FLandPA_raw, "OTU cDNA:DNA FL and PA samples")
+deseq_otu_DNAcDNA_plot_FLandPA_raw
+dev.off()
+
+####pull out most different, highly active OTUs  --- FOR TABLE 3
+View(deseq_otu_DNAcDNA_FLandPA_raw)
+
+```
+
+# Overabundant in zm-free lakes
+```{r}
+# Table
+library(knitr)
+non.abund <- filter(sigtab.invaded, log2FoldChange > 0)
+kable(x = non.abund)
+```
+
+# Overabundant in invaded lakes
+```{r}
+# Table
+inv.abund <- filter(sigtab.invaded, log2FoldChange < 0)
+kable(x = inv.abund)
+```
+
+## top 200 taxa boxplots euclidean distances across seasons (Fig. 6)
+```{r top 200 taxa boxplots euclidean distances across seasons}
+### determine whether ratios in different habitats becomes increasingly different over seasonal succession
+
+#create dataframe with paired Euclidean dissimilarity and add metadata for compared samples
+cDD_norm_euc <- vegdist(t(mf_cD2D_log), method = "euc")  # calculates the Euclidean Distances
+cDD_euc <- melt(as.matrix(cDD_norm_euc), varnames = c("samp1", "samp2"))
+cDD_euc$season1 <- substr(cDD_euc$samp1,1,2) # Create a new column called season1 with first 2 letters of string
+cDD_euc$season2 <- substr(cDD_euc$samp2,1,2) # Create a new column called season2 with first 2 letters of string
+cDD_euc$fraction1 <- substr(cDD_euc$samp1,4,4) # Create a new column called fraction1 with letter 4 of string
+cDD_euc$fraction2 <- substr(cDD_euc$samp2,4,4) # Create a new column called fraction2 with letter 4 of string
+cDD_euc$station1 <- unlist(strsplit(toString(cDD_euc$samp1), "[., ]"))[seq(3,length(unlist(strsplit(toString(cDD_euc$samp1), split="[., ]"))),5)] # Create a new column called station1 with staton name
+cDD_euc$station2 <- unlist(strsplit(toString(cDD_euc$samp2), "[., ]"))[seq(3,length(unlist(strsplit(toString(cDD_euc$samp2), split="[., ]"))),5)] # Create a new column called station2 with staton name
+cDD_euc$depth1 <- substr(unlist(strsplit(toString(cDD_euc$samp1), "[., ]"))[seq(4,length(unlist(strsplit(toString(cDD_euc$samp1), split="[., ]"))),5)],1,1) # Create a new column called depth1 with depth
+cDD_euc$depth2 <- substr(unlist(strsplit(toString(cDD_euc$samp2), "[., ]"))[seq(4,length(unlist(strsplit(toString(cDD_euc$samp2), split="[., ]"))),5)],1,1) # Create a new column called depth2 with depth
+
+#combine category names to group similar comparisons - sorry, clunky code here, but hey, it works!
+cDD_euc$complake[cDD_euc$season1=="Sp"&cDD_euc$season2=="Sp"&cDD_euc$station1=="MLB"&cDD_euc$station2=="MLB"]<-"Sp_ML"
+cDD_euc$complake[cDD_euc$season1=="Sp"&cDD_euc$season2=="Sp"&cDD_euc$station1=="15"&cDD_euc$station2=="15"]<-"Sp_LM"
+cDD_euc$complake[cDD_euc$season1=="Sp"&cDD_euc$season2=="Sp"&cDD_euc$station1=="110"&cDD_euc$station2=="110"]<-"Sp_LM"
+cDD_euc$complake[cDD_euc$season1=="Sp"&cDD_euc$season2=="Sp"&cDD_euc$station1=="MLB"&cDD_euc$station2=="15"]<-"Sp_MLBvsLM"
+cDD_euc$complake[cDD_euc$season1=="Sp"&cDD_euc$season2=="Sp"&cDD_euc$station1=="MLB"&cDD_euc$station2=="110"]<-"Sp_MLBvsLM"
+cDD_euc$complake[cDD_euc$season1=="Sp"&cDD_euc$season2=="Sp"&cDD_euc$station1=="15"&cDD_euc$station2=="110"]<-"Sp_LM"
+cDD_euc$complake[cDD_euc$season1=="Sp"&cDD_euc$season2=="Sp"&cDD_euc$station1=="15"&cDD_euc$station2=="MLB"]<-"Sp_MLBvsLM"
+cDD_euc$complake[cDD_euc$season1=="Sp"&cDD_euc$season2=="Sp"&cDD_euc$station1=="110"&cDD_euc$station2=="MLB"]<-"Sp_MLBvsLM"
+cDD_euc$complake[cDD_euc$season1=="Sp"&cDD_euc$season2=="Sp"&cDD_euc$station1=="110"&cDD_euc$station2=="15"]<-"Sp_LM"
+
+cDD_euc$compstat[cDD_euc$season1=="Sp"&cDD_euc$season2=="Sp"&cDD_euc$station1=="MLB"&cDD_euc$station2=="MLB"]<-"Sp_MLB"
+cDD_euc$compstat[cDD_euc$season1=="Sp"&cDD_euc$season2=="Sp"&cDD_euc$station1=="15"&cDD_euc$station2=="15"]<-"Sp_15"
+cDD_euc$compstat[cDD_euc$season1=="Sp"&cDD_euc$season2=="Sp"&cDD_euc$station1=="110"&cDD_euc$station2=="110"]<-"Sp_110"
+cDD_euc$compstat[cDD_euc$season1=="Sp"&cDD_euc$season2=="Sp"&cDD_euc$station1=="MLB"&cDD_euc$station2=="15"]<-"Sp_MLBvs15"
+cDD_euc$compstat[cDD_euc$season1=="Sp"&cDD_euc$season2=="Sp"&cDD_euc$station1=="MLB"&cDD_euc$station2=="110"]<-"Sp_MLBvs110"
+cDD_euc$compstat[cDD_euc$season1=="Sp"&cDD_euc$season2=="Sp"&cDD_euc$station1=="15"&cDD_euc$station2=="110"]<-"Sp_15vs110"
+cDD_euc$compstat[cDD_euc$season1=="Sp"&cDD_euc$season2=="Sp"&cDD_euc$station1=="15"&cDD_euc$station2=="MLB"]<-"Sp_MLBvs15"
+cDD_euc$compstat[cDD_euc$season1=="Sp"&cDD_euc$season2=="Sp"&cDD_euc$station1=="110"&cDD_euc$station2=="MLB"]<-"Sp_MLBvs110"
+cDD_euc$compstat[cDD_euc$season1=="Sp"&cDD_euc$season2=="Sp"&cDD_euc$station1=="110"&cDD_euc$station2=="15"]<-"Sp_15vs110"
+
+cDD_euc$compfrac[cDD_euc$season1=="Sp"&cDD_euc$season2=="Sp"&cDD_euc$fraction1=="B"&cDD_euc$fraction2=="B"]<-"Sp_FL"
+cDD_euc$compfrac[cDD_euc$season1=="Sp"&cDD_euc$season2=="Sp"&cDD_euc$fraction1=="E"&cDD_euc$fraction2=="E"]<-"Sp_PA"
+cDD_euc$compfrac[cDD_euc$season1=="Sp"&cDD_euc$season2=="Sp"&cDD_euc$fraction1=="B"&cDD_euc$fraction2=="E"]<-"Sp_FLvsPA"
+cDD_euc$compfrac[cDD_euc$season1=="Sp"&cDD_euc$season2=="Sp"&cDD_euc$fraction1=="E"&cDD_euc$fraction2=="B"]<-"Sp_FLvsPA"
+
+cDD_euc$compdepth[cDD_euc$season1=="Sp"&cDD_euc$season2=="Sp"&cDD_euc$depth1=="S"&cDD_euc$depth2=="S"]<-"Sp_Surf"
+cDD_euc$compdepth[cDD_euc$season1=="Sp"&cDD_euc$season2=="Sp"&cDD_euc$depth1=="D"&cDD_euc$depth2=="D"]<-"Sp_Deep"
+cDD_euc$compdepth[cDD_euc$season1=="Sp"&cDD_euc$season2=="Sp"&cDD_euc$depth1=="S"&cDD_euc$depth2=="D"]<-"Sp_SurfvsDeep"
+cDD_euc$compdepth[cDD_euc$season1=="Sp"&cDD_euc$season2=="Sp"&cDD_euc$depth1=="D"&cDD_euc$depth2=="S"]<-"Sp_SurfvsDeep"
+
+cDD_euc$complake[cDD_euc$season1=="Su"&cDD_euc$season2=="Su"&cDD_euc$station1=="MLB"&cDD_euc$station2=="MLB"]<-"Su_ML"
+cDD_euc$complake[cDD_euc$season1=="Su"&cDD_euc$season2=="Su"&cDD_euc$station1=="15"&cDD_euc$station2=="15"]<-"Su_LM"
+cDD_euc$complake[cDD_euc$season1=="Su"&cDD_euc$season2=="Su"&cDD_euc$station1=="110"&cDD_euc$station2=="110"]<-"Su_LM"
+cDD_euc$complake[cDD_euc$season1=="Su"&cDD_euc$season2=="Su"&cDD_euc$station1=="MLB"&cDD_euc$station2=="15"]<-"Su_MLBvsLM"
+cDD_euc$complake[cDD_euc$season1=="Su"&cDD_euc$season2=="Su"&cDD_euc$station1=="MLB"&cDD_euc$station2=="110"]<-"Su_MLBvsLM"
+cDD_euc$complake[cDD_euc$season1=="Su"&cDD_euc$season2=="Su"&cDD_euc$station1=="15"&cDD_euc$station2=="110"]<-"Su_LM"
+cDD_euc$complake[cDD_euc$season1=="Su"&cDD_euc$season2=="Su"&cDD_euc$station1=="15"&cDD_euc$station2=="MLB"]<-"Su_MLBvsLM"
+cDD_euc$complake[cDD_euc$season1=="Su"&cDD_euc$season2=="Su"&cDD_euc$station1=="110"&cDD_euc$station2=="MLB"]<-"Su_MLBvsLM"
+cDD_euc$complake[cDD_euc$season1=="Su"&cDD_euc$season2=="Su"&cDD_euc$station1=="110"&cDD_euc$station2=="15"]<-"Su_LM"
+
+cDD_euc$compstat[cDD_euc$season1=="Su"&cDD_euc$season2=="Su"&cDD_euc$station1=="MLB"&cDD_euc$station2=="MLB"]<-"Su_MLB"
+cDD_euc$compstat[cDD_euc$season1=="Su"&cDD_euc$season2=="Su"&cDD_euc$station1=="15"&cDD_euc$station2=="15"]<-"Su_15"
+cDD_euc$compstat[cDD_euc$season1=="Su"&cDD_euc$season2=="Su"&cDD_euc$station1=="110"&cDD_euc$station2=="110"]<-"Su_110"
+cDD_euc$compstat[cDD_euc$season1=="Su"&cDD_euc$season2=="Su"&cDD_euc$station1=="MLB"&cDD_euc$station2=="15"]<-"Su_MLBvs15"
+cDD_euc$compstat[cDD_euc$season1=="Su"&cDD_euc$season2=="Su"&cDD_euc$station1=="MLB"&cDD_euc$station2=="110"]<-"Su_MLBvs110"
+cDD_euc$compstat[cDD_euc$season1=="Su"&cDD_euc$season2=="Su"&cDD_euc$station1=="15"&cDD_euc$station2=="110"]<-"Su_15vs110"
+cDD_euc$compstat[cDD_euc$season1=="Su"&cDD_euc$season2=="Su"&cDD_euc$station1=="15"&cDD_euc$station2=="MLB"]<-"Su_MLBvs15"
+cDD_euc$compstat[cDD_euc$season1=="Su"&cDD_euc$season2=="Su"&cDD_euc$station1=="110"&cDD_euc$station2=="MLB"]<-"Su_MLBvs110"
+cDD_euc$compstat[cDD_euc$season1=="Su"&cDD_euc$season2=="Su"&cDD_euc$station1=="110"&cDD_euc$station2=="15"]<-"Su_15vs110"
+
+cDD_euc$compfrac[cDD_euc$season1=="Su"&cDD_euc$season2=="Su"&cDD_euc$fraction1=="B"&cDD_euc$fraction2=="B"]<-"Su_FL"
+cDD_euc$compfrac[cDD_euc$season1=="Su"&cDD_euc$season2=="Su"&cDD_euc$fraction1=="E"&cDD_euc$fraction2=="E"]<-"Su_PA"
+cDD_euc$compfrac[cDD_euc$season1=="Su"&cDD_euc$season2=="Su"&cDD_euc$fraction1=="B"&cDD_euc$fraction2=="E"]<-"Su_FLvsPA"
+cDD_euc$compfrac[cDD_euc$season1=="Su"&cDD_euc$season2=="Su"&cDD_euc$fraction1=="E"&cDD_euc$fraction2=="B"]<-"Su_FLvsPA"
+
+cDD_euc$compdepth[cDD_euc$season1=="Su"&cDD_euc$season2=="Su"&cDD_euc$depth1=="S"&cDD_euc$depth2=="S"]<-"Su_Surf"
+cDD_euc$compdepth[cDD_euc$season1=="Su"&cDD_euc$season2=="Su"&cDD_euc$depth1=="D"&cDD_euc$depth2=="D"]<-"Su_Deep"
+cDD_euc$compdepth[cDD_euc$season1=="Su"&cDD_euc$season2=="Su"&cDD_euc$depth1=="S"&cDD_euc$depth2=="D"]<-"Su_SurfvsDeep"
+cDD_euc$compdepth[cDD_euc$season1=="Su"&cDD_euc$season2=="Su"&cDD_euc$depth1=="D"&cDD_euc$depth2=="S"]<-"Su_SurfvsDeep"
+
+cDD_euc$complake[cDD_euc$season1=="Fa"&cDD_euc$season2=="Fa"&cDD_euc$station1=="MLB"&cDD_euc$station2=="MLB"]<-"Fa_ML"
+cDD_euc$complake[cDD_euc$season1=="Fa"&cDD_euc$season2=="Fa"&cDD_euc$station1=="15"&cDD_euc$station2=="15"]<-"Fa_LM"
+cDD_euc$complake[cDD_euc$season1=="Fa"&cDD_euc$season2=="Fa"&cDD_euc$station1=="110"&cDD_euc$station2=="110"]<-"Fa_LM"
+cDD_euc$complake[cDD_euc$season1=="Fa"&cDD_euc$season2=="Fa"&cDD_euc$station1=="MLB"&cDD_euc$station2=="15"]<-"Fa_MLBvsLM"
+cDD_euc$complake[cDD_euc$season1=="Fa"&cDD_euc$season2=="Fa"&cDD_euc$station1=="MLB"&cDD_euc$station2=="110"]<-"Fa_MLBvsLM"
+cDD_euc$complake[cDD_euc$season1=="Fa"&cDD_euc$season2=="Fa"&cDD_euc$station1=="15"&cDD_euc$station2=="110"]<-"Fa_LM"
+cDD_euc$complake[cDD_euc$season1=="Fa"&cDD_euc$season2=="Fa"&cDD_euc$station1=="15"&cDD_euc$station2=="MLB"]<-"Fa_MLBvsLM"
+cDD_euc$complake[cDD_euc$season1=="Fa"&cDD_euc$season2=="Fa"&cDD_euc$station1=="110"&cDD_euc$station2=="MLB"]<-"Fa_MLBvsLM"
+cDD_euc$complake[cDD_euc$season1=="Fa"&cDD_euc$season2=="Fa"&cDD_euc$station1=="110"&cDD_euc$station2=="15"]<-"Fa_LM"
+
+cDD_euc$compstat[cDD_euc$season1=="Fa"&cDD_euc$season2=="Fa"&cDD_euc$station1=="MLB"&cDD_euc$station2=="MLB"]<-"Fa_MLB"
+cDD_euc$compstat[cDD_euc$season1=="Fa"&cDD_euc$season2=="Fa"&cDD_euc$station1=="15"&cDD_euc$station2=="15"]<-"Fa_15"
+cDD_euc$compstat[cDD_euc$season1=="Fa"&cDD_euc$season2=="Fa"&cDD_euc$station1=="110"&cDD_euc$station2=="110"]<-"Fa_110"
+cDD_euc$compstat[cDD_euc$season1=="Fa"&cDD_euc$season2=="Fa"&cDD_euc$station1=="MLB"&cDD_euc$station2=="15"]<-"Fa_MLBvs15"
+cDD_euc$compstat[cDD_euc$season1=="Fa"&cDD_euc$season2=="Fa"&cDD_euc$station1=="MLB"&cDD_euc$station2=="110"]<-"Fa_MLBvs110"
+cDD_euc$compstat[cDD_euc$season1=="Fa"&cDD_euc$season2=="Fa"&cDD_euc$station1=="15"&cDD_euc$station2=="110"]<-"Fa_15vs110"
+cDD_euc$compstat[cDD_euc$season1=="Fa"&cDD_euc$season2=="Fa"&cDD_euc$station1=="15"&cDD_euc$station2=="MLB"]<-"Fa_MLBvs15"
+cDD_euc$compstat[cDD_euc$season1=="Fa"&cDD_euc$season2=="Fa"&cDD_euc$station1=="110"&cDD_euc$station2=="MLB"]<-"Fa_MLBvs110"
+cDD_euc$compstat[cDD_euc$season1=="Fa"&cDD_euc$season2=="Fa"&cDD_euc$station1=="110"&cDD_euc$station2=="15"]<-"Fa_15vs110"
+
+cDD_euc$compfrac[cDD_euc$season1=="Fa"&cDD_euc$season2=="Fa"&cDD_euc$fraction1=="B"&cDD_euc$fraction2=="B"]<-"Fa_FL"
+cDD_euc$compfrac[cDD_euc$season1=="Fa"&cDD_euc$season2=="Fa"&cDD_euc$fraction1=="E"&cDD_euc$fraction2=="E"]<-"Fa_PA"
+cDD_euc$compfrac[cDD_euc$season1=="Fa"&cDD_euc$season2=="Fa"&cDD_euc$fraction1=="B"&cDD_euc$fraction2=="E"]<-"Fa_FLvsPA"
+cDD_euc$compfrac[cDD_euc$season1=="Fa"&cDD_euc$season2=="Fa"&cDD_euc$fraction1=="E"&cDD_euc$fraction2=="B"]<-"Fa_FLvsPA"
+
+cDD_euc$compdepth[cDD_euc$season1=="Fa"&cDD_euc$season2=="Fa"&cDD_euc$depth1=="S"&cDD_euc$depth2=="S"]<-"Fa_Surf"
+cDD_euc$compdepth[cDD_euc$season1=="Fa"&cDD_euc$season2=="Fa"&cDD_euc$depth1=="D"&cDD_euc$depth2=="D"]<-"Fa_Deep"
+cDD_euc$compdepth[cDD_euc$season1=="Fa"&cDD_euc$season2=="Fa"&cDD_euc$depth1=="S"&cDD_euc$depth2=="D"]<-"Fa_SurfvsDeep"
+cDD_euc$compdepth[cDD_euc$season1=="Fa"&cDD_euc$season2=="Fa"&cDD_euc$depth1=="D"&cDD_euc$depth2=="S"]<-"Fa_SurfvsDeep"
+
+cDD_euc$complake[cDD_euc$season1=="Sp"&cDD_euc$season2=="Su"&cDD_euc$station1=="MLB"&cDD_euc$station2=="MLB"]<-"Sp-Su_MLB"
+cDD_euc$complake[cDD_euc$season1=="Sp"&cDD_euc$season2=="Su"&cDD_euc$station1=="15"&cDD_euc$station2=="15"]<-"Sp-Su_LM"
+cDD_euc$complake[cDD_euc$season1=="Sp"&cDD_euc$season2=="Su"&cDD_euc$station1=="110"&cDD_euc$station2=="110"]<-"Sp-Su_LM"
+cDD_euc$complake[cDD_euc$season1=="Sp"&cDD_euc$season2=="Su"&cDD_euc$station1=="MLB"&cDD_euc$station2=="15"]<-"Sp-Su_MLBvsLM"
+cDD_euc$complake[cDD_euc$season1=="Sp"&cDD_euc$season2=="Su"&cDD_euc$station1=="MLB"&cDD_euc$station2=="110"]<-"Sp-Su_MLBvsLM"
+cDD_euc$complake[cDD_euc$season1=="Sp"&cDD_euc$season2=="Su"&cDD_euc$station1=="15"&cDD_euc$station2=="110"]<-"Sp-Su_LM"
+cDD_euc$complake[cDD_euc$season1=="Sp"&cDD_euc$season2=="Su"&cDD_euc$station1=="15"&cDD_euc$station2=="MLB"]<-"Sp-Su_MLBvsLM"
+cDD_euc$complake[cDD_euc$season1=="Sp"&cDD_euc$season2=="Su"&cDD_euc$station1=="110"&cDD_euc$station2=="MLB"]<-"Sp-Su_MLBvsLM"
+cDD_euc$complake[cDD_euc$season1=="Sp"&cDD_euc$season2=="Su"&cDD_euc$station1=="110"&cDD_euc$station2=="15"]<-"Sp-Su_LM"
+
+cDD_euc$compstat[cDD_euc$season1=="Sp"&cDD_euc$season2=="Su"&cDD_euc$station1=="MLB"&cDD_euc$station2=="MLB"]<-"Sp-Su_MLB"
+cDD_euc$compstat[cDD_euc$season1=="Sp"&cDD_euc$season2=="Su"&cDD_euc$station1=="15"&cDD_euc$station2=="15"]<-"Sp-Su_15"
+cDD_euc$compstat[cDD_euc$season1=="Sp"&cDD_euc$season2=="Su"&cDD_euc$station1=="110"&cDD_euc$station2=="110"]<-"Sp-Su_110"
+cDD_euc$compstat[cDD_euc$season1=="Sp"&cDD_euc$season2=="Su"&cDD_euc$station1=="MLB"&cDD_euc$station2=="15"]<-"Sp-Su_MLBvs15"
+cDD_euc$compstat[cDD_euc$season1=="Sp"&cDD_euc$season2=="Su"&cDD_euc$station1=="MLB"&cDD_euc$station2=="110"]<-"Sp-Su_MLBvs110"
+cDD_euc$compstat[cDD_euc$season1=="Sp"&cDD_euc$season2=="Su"&cDD_euc$station1=="15"&cDD_euc$station2=="110"]<-"Sp-Su_15vs110"
+cDD_euc$compstat[cDD_euc$season1=="Sp"&cDD_euc$season2=="Su"&cDD_euc$station1=="15"&cDD_euc$station2=="MLB"]<-"Sp-Su_MLBvs15"
+cDD_euc$compstat[cDD_euc$season1=="Sp"&cDD_euc$season2=="Su"&cDD_euc$station1=="110"&cDD_euc$station2=="MLB"]<-"Sp-Su_MLBvs110"
+cDD_euc$compstat[cDD_euc$season1=="Sp"&cDD_euc$season2=="Su"&cDD_euc$station1=="110"&cDD_euc$station2=="15"]<-"Sp-Su_15vs110"
+
+cDD_euc$compfrac[cDD_euc$season1=="Sp"&cDD_euc$season2=="Su"&cDD_euc$fraction1=="B"&cDD_euc$fraction2=="B"]<-"Sp-Su_FL"
+cDD_euc$compfrac[cDD_euc$season1=="Sp"&cDD_euc$season2=="Su"&cDD_euc$fraction1=="E"&cDD_euc$fraction2=="E"]<-"Sp-Su_PA"
+cDD_euc$compfrac[cDD_euc$season1=="Sp"&cDD_euc$season2=="Su"&cDD_euc$fraction1=="B"&cDD_euc$fraction2=="E"]<-"Sp-Su_FLvsPA"
+cDD_euc$compfrac[cDD_euc$season1=="Sp"&cDD_euc$season2=="Su"&cDD_euc$fraction1=="E"&cDD_euc$fraction2=="B"]<-"Sp-Su_FLvsPA"
+
+cDD_euc$compdepth[cDD_euc$season1=="Sp"&cDD_euc$season2=="Su"&cDD_euc$depth1=="S"&cDD_euc$depth2=="S"]<-"Sp-Su_Surf"
+cDD_euc$compdepth[cDD_euc$season1=="Sp"&cDD_euc$season2=="Su"&cDD_euc$depth1=="D"&cDD_euc$depth2=="D"]<-"Sp-Su_Deep"
+cDD_euc$compdepth[cDD_euc$season1=="Sp"&cDD_euc$season2=="Su"&cDD_euc$depth1=="S"&cDD_euc$depth2=="D"]<-"Sp-Su_SurfvsDeep"
+cDD_euc$compdepth[cDD_euc$season1=="Sp"&cDD_euc$season2=="Su"&cDD_euc$depth1=="D"&cDD_euc$depth2=="S"]<-"Sp-Su_SurfvsDeep"
+
+cDD_euc$complake[cDD_euc$season1=="Su"&cDD_euc$season2=="Sp"&cDD_euc$station1=="MLB"&cDD_euc$station2=="MLB"]<-"Sp-Su_MLB"
+cDD_euc$complake[cDD_euc$season1=="Su"&cDD_euc$season2=="Sp"&cDD_euc$station1=="15"&cDD_euc$station2=="15"]<-"Sp-Su_LM"
+cDD_euc$complake[cDD_euc$season1=="Su"&cDD_euc$season2=="Sp"&cDD_euc$station1=="110"&cDD_euc$station2=="110"]<-"Sp-Su_LM"
+cDD_euc$complake[cDD_euc$season1=="Su"&cDD_euc$season2=="Sp"&cDD_euc$station1=="MLB"&cDD_euc$station2=="15"]<-"Sp-Su_MLBvsLM"
+cDD_euc$complake[cDD_euc$season1=="Su"&cDD_euc$season2=="Sp"&cDD_euc$station1=="MLB"&cDD_euc$station2=="110"]<-"Sp-Su_MLBvsLM"
+cDD_euc$complake[cDD_euc$season1=="Su"&cDD_euc$season2=="Sp"&cDD_euc$station1=="15"&cDD_euc$station2=="110"]<-"Sp-Su_LM"
+cDD_euc$complake[cDD_euc$season1=="Su"&cDD_euc$season2=="Sp"&cDD_euc$station1=="15"&cDD_euc$station2=="MLB"]<-"Sp-Su_MLBvsLM"
+cDD_euc$complake[cDD_euc$season1=="Su"&cDD_euc$season2=="Sp"&cDD_euc$station1=="110"&cDD_euc$station2=="MLB"]<-"Sp-Su_MLBvsLM"
+cDD_euc$complake[cDD_euc$season1=="Su"&cDD_euc$season2=="Sp"&cDD_euc$station1=="110"&cDD_euc$station2=="15"]<-"Sp-Su_LM"
+
+cDD_euc$compstat[cDD_euc$season1=="Su"&cDD_euc$season2=="Sp"&cDD_euc$station1=="MLB"&cDD_euc$station2=="MLB"]<-"Sp-Su_MLB"
+cDD_euc$compstat[cDD_euc$season1=="Su"&cDD_euc$season2=="Sp"&cDD_euc$station1=="15"&cDD_euc$station2=="15"]<-"Sp-Su_15"
+cDD_euc$compstat[cDD_euc$season1=="Su"&cDD_euc$season2=="Sp"&cDD_euc$station1=="110"&cDD_euc$station2=="110"]<-"Sp-Su_110"
+cDD_euc$compstat[cDD_euc$season1=="Su"&cDD_euc$season2=="Sp"&cDD_euc$station1=="MLB"&cDD_euc$station2=="15"]<-"Sp-Su_MLBvs15"
+cDD_euc$compstat[cDD_euc$season1=="Su"&cDD_euc$season2=="Sp"&cDD_euc$station1=="MLB"&cDD_euc$station2=="110"]<-"Sp-Su_MLBvs110"
+cDD_euc$compstat[cDD_euc$season1=="Su"&cDD_euc$season2=="Sp"&cDD_euc$station1=="15"&cDD_euc$station2=="110"]<-"Sp-Su_15vs110"
+cDD_euc$compstat[cDD_euc$season1=="Su"&cDD_euc$season2=="Sp"&cDD_euc$station1=="15"&cDD_euc$station2=="MLB"]<-"Sp-Su_MLBvs15"
+cDD_euc$compstat[cDD_euc$season1=="Su"&cDD_euc$season2=="Sp"&cDD_euc$station1=="110"&cDD_euc$station2=="MLB"]<-"Sp-Su_MLBvs110"
+cDD_euc$compstat[cDD_euc$season1=="Su"&cDD_euc$season2=="Sp"&cDD_euc$station1=="110"&cDD_euc$station2=="15"]<-"Sp-Su_15vs110"
+
+cDD_euc$compfrac[cDD_euc$season1=="Su"&cDD_euc$season2=="Sp"&cDD_euc$fraction1=="B"&cDD_euc$fraction2=="B"]<-"Sp-Su_FL"
+cDD_euc$compfrac[cDD_euc$season1=="Su"&cDD_euc$season2=="Sp"&cDD_euc$fraction1=="E"&cDD_euc$fraction2=="E"]<-"Sp-Su_PA"
+cDD_euc$compfrac[cDD_euc$season1=="Su"&cDD_euc$season2=="Sp"&cDD_euc$fraction1=="B"&cDD_euc$fraction2=="E"]<-"Sp-Su_FLvsPA"
+cDD_euc$compfrac[cDD_euc$season1=="Su"&cDD_euc$season2=="Sp"&cDD_euc$fraction1=="E"&cDD_euc$fraction2=="B"]<-"Sp-Su_FLvsPA"
+
+cDD_euc$compdepth[cDD_euc$season1=="Su"&cDD_euc$season2=="Sp"&cDD_euc$depth1=="S"&cDD_euc$depth2=="S"]<-"Sp-Su_Surf"
+cDD_euc$compdepth[cDD_euc$season1=="Su"&cDD_euc$season2=="Sp"&cDD_euc$depth1=="D"&cDD_euc$depth2=="D"]<-"Sp-Su_Deep"
+cDD_euc$compdepth[cDD_euc$season1=="Su"&cDD_euc$season2=="Sp"&cDD_euc$depth1=="S"&cDD_euc$depth2=="D"]<-"Sp-Su_SurfvsDeep"
+cDD_euc$compdepth[cDD_euc$season1=="Su"&cDD_euc$season2=="Sp"&cDD_euc$depth1=="D"&cDD_euc$depth2=="S"]<-"Sp-Su_SurfvsDeep"
+
+cDD_euc$complake[cDD_euc$season1=="Sp"&cDD_euc$season2=="Fa"&cDD_euc$station1=="MLB"&cDD_euc$station2=="MLB"]<-"Sp-Fa_MLB"
+cDD_euc$complake[cDD_euc$season1=="Sp"&cDD_euc$season2=="Fa"&cDD_euc$station1=="15"&cDD_euc$station2=="15"]<-"Sp-Fa_LM"
+cDD_euc$complake[cDD_euc$season1=="Sp"&cDD_euc$season2=="Fa"&cDD_euc$station1=="110"&cDD_euc$station2=="110"]<-"Sp-Fa_LM"
+cDD_euc$complake[cDD_euc$season1=="Sp"&cDD_euc$season2=="Fa"&cDD_euc$station1=="MLB"&cDD_euc$station2=="15"]<-"Sp-Fa_MLBvsLM"
+cDD_euc$complake[cDD_euc$season1=="Sp"&cDD_euc$season2=="Fa"&cDD_euc$station1=="MLB"&cDD_euc$station2=="110"]<-"Sp-Fa_MLBvsLM"
+cDD_euc$complake[cDD_euc$season1=="Sp"&cDD_euc$season2=="Fa"&cDD_euc$station1=="15"&cDD_euc$station2=="110"]<-"Sp-Fa_LM"
+cDD_euc$complake[cDD_euc$season1=="Sp"&cDD_euc$season2=="Fa"&cDD_euc$station1=="15"&cDD_euc$station2=="MLB"]<-"Sp-Fa_MLBvsLM"
+cDD_euc$complake[cDD_euc$season1=="Sp"&cDD_euc$season2=="Fa"&cDD_euc$station1=="110"&cDD_euc$station2=="MLB"]<-"Sp-Fa_MLBvsLM"
+cDD_euc$complake[cDD_euc$season1=="Sp"&cDD_euc$season2=="Fa"&cDD_euc$station1=="110"&cDD_euc$station2=="15"]<-"Sp-Fa_LM"
+
+cDD_euc$compstat[cDD_euc$season1=="Sp"&cDD_euc$season2=="Fa"&cDD_euc$station1=="MLB"&cDD_euc$station2=="MLB"]<-"Sp-Fa_MLB"
+cDD_euc$compstat[cDD_euc$season1=="Sp"&cDD_euc$season2=="Fa"&cDD_euc$station1=="15"&cDD_euc$station2=="15"]<-"Sp-Fa_15"
+cDD_euc$compstat[cDD_euc$season1=="Sp"&cDD_euc$season2=="Fa"&cDD_euc$station1=="110"&cDD_euc$station2=="110"]<-"Sp-Fa_110"
+cDD_euc$compstat[cDD_euc$season1=="Sp"&cDD_euc$season2=="Fa"&cDD_euc$station1=="MLB"&cDD_euc$station2=="15"]<-"Sp-Fa_MLBvs15"
+cDD_euc$compstat[cDD_euc$season1=="Sp"&cDD_euc$season2=="Fa"&cDD_euc$station1=="MLB"&cDD_euc$station2=="110"]<-"Sp-Fa_MLBvs110"
+cDD_euc$compstat[cDD_euc$season1=="Sp"&cDD_euc$season2=="Fa"&cDD_euc$station1=="15"&cDD_euc$station2=="110"]<-"Sp-Fa_15vs110"
+cDD_euc$compstat[cDD_euc$season1=="Sp"&cDD_euc$season2=="Fa"&cDD_euc$station1=="15"&cDD_euc$station2=="MLB"]<-"Sp-Fa_MLBvs15"
+cDD_euc$compstat[cDD_euc$season1=="Sp"&cDD_euc$season2=="Fa"&cDD_euc$station1=="110"&cDD_euc$station2=="MLB"]<-"Sp-Fa_MLBvs110"
+cDD_euc$compstat[cDD_euc$season1=="Sp"&cDD_euc$season2=="Fa"&cDD_euc$station1=="110"&cDD_euc$station2=="15"]<-"Sp-Fa_15vs110"
+
+cDD_euc$compfrac[cDD_euc$season1=="Sp"&cDD_euc$season2=="Fa"&cDD_euc$fraction1=="B"&cDD_euc$fraction2=="B"]<-"Sp-Fa_FL"
+cDD_euc$compfrac[cDD_euc$season1=="Sp"&cDD_euc$season2=="Fa"&cDD_euc$fraction1=="E"&cDD_euc$fraction2=="E"]<-"Sp-Fa_PA"
+cDD_euc$compfrac[cDD_euc$season1=="Sp"&cDD_euc$season2=="Fa"&cDD_euc$fraction1=="B"&cDD_euc$fraction2=="E"]<-"Sp-Fa_FLvsPA"
+cDD_euc$compfrac[cDD_euc$season1=="Sp"&cDD_euc$season2=="Fa"&cDD_euc$fraction1=="E"&cDD_euc$fraction2=="B"]<-"Sp-Fa_FLvsPA"
+
+cDD_euc$compdepth[cDD_euc$season1=="Sp"&cDD_euc$season2=="Fa"&cDD_euc$depth1=="S"&cDD_euc$depth2=="S"]<-"Sp-Fa_Surf"
+cDD_euc$compdepth[cDD_euc$season1=="Sp"&cDD_euc$season2=="Fa"&cDD_euc$depth1=="D"&cDD_euc$depth2=="D"]<-"Sp-Fa_Deep"
+cDD_euc$compdepth[cDD_euc$season1=="Sp"&cDD_euc$season2=="Fa"&cDD_euc$depth1=="S"&cDD_euc$depth2=="D"]<-"Sp-Fa_SurfvsDeep"
+cDD_euc$compdepth[cDD_euc$season1=="Sp"&cDD_euc$season2=="Fa"&cDD_euc$depth1=="D"&cDD_euc$depth2=="S"]<-"Sp-Fa_SurfvsDeep"
+
+cDD_euc$complake[cDD_euc$season1=="Fa"&cDD_euc$season2=="Sp"&cDD_euc$station1=="MLB"&cDD_euc$station2=="MLB"]<-"Sp-Fa_MLB"
+cDD_euc$complake[cDD_euc$season1=="Fa"&cDD_euc$season2=="Sp"&cDD_euc$station1=="15"&cDD_euc$station2=="15"]<-"Sp-Fa_LM"
+cDD_euc$complake[cDD_euc$season1=="Fa"&cDD_euc$season2=="Sp"&cDD_euc$station1=="110"&cDD_euc$station2=="110"]<-"Sp-Fa_LM"
+cDD_euc$complake[cDD_euc$season1=="Fa"&cDD_euc$season2=="Sp"&cDD_euc$station1=="MLB"&cDD_euc$station2=="15"]<-"Sp-Fa_MLBvsLM"
+cDD_euc$complake[cDD_euc$season1=="Fa"&cDD_euc$season2=="Sp"&cDD_euc$station1=="MLB"&cDD_euc$station2=="110"]<-"Sp-Fa_MLBvsLM"
+cDD_euc$complake[cDD_euc$season1=="Fa"&cDD_euc$season2=="Sp"&cDD_euc$station1=="15"&cDD_euc$station2=="110"]<-"Sp-Fa_LM"
+cDD_euc$complake[cDD_euc$season1=="Fa"&cDD_euc$season2=="Sp"&cDD_euc$station1=="15"&cDD_euc$station2=="MLB"]<-"Sp-Fa_MLBvsLM"
+cDD_euc$complake[cDD_euc$season1=="Fa"&cDD_euc$season2=="Sp"&cDD_euc$station1=="110"&cDD_euc$station2=="MLB"]<-"Sp-Fa_MLBvsLM"
+cDD_euc$complake[cDD_euc$season1=="Fa"&cDD_euc$season2=="Sp"&cDD_euc$station1=="110"&cDD_euc$station2=="15"]<-"Sp-Fa_LM"
+
+cDD_euc$compstat[cDD_euc$season1=="Fa"&cDD_euc$season2=="Sp"&cDD_euc$station1=="MLB"&cDD_euc$station2=="MLB"]<-"Sp-Fa_MLB"
+cDD_euc$compstat[cDD_euc$season1=="Fa"&cDD_euc$season2=="Sp"&cDD_euc$station1=="15"&cDD_euc$station2=="15"]<-"Sp-Fa_15"
+cDD_euc$compstat[cDD_euc$season1=="Fa"&cDD_euc$season2=="Sp"&cDD_euc$station1=="110"&cDD_euc$station2=="110"]<-"Sp-Fa_110"
+cDD_euc$compstat[cDD_euc$season1=="Fa"&cDD_euc$season2=="Sp"&cDD_euc$station1=="MLB"&cDD_euc$station2=="15"]<-"Sp-Fa_MLBvs15"
+cDD_euc$compstat[cDD_euc$season1=="Fa"&cDD_euc$season2=="Sp"&cDD_euc$station1=="MLB"&cDD_euc$station2=="110"]<-"Sp-Fa_MLBvs110"
+cDD_euc$compstat[cDD_euc$season1=="Fa"&cDD_euc$season2=="Sp"&cDD_euc$station1=="15"&cDD_euc$station2=="110"]<-"Sp-Fa_15vs110"
+cDD_euc$compstat[cDD_euc$season1=="Fa"&cDD_euc$season2=="Sp"&cDD_euc$station1=="15"&cDD_euc$station2=="MLB"]<-"Sp-Fa_MLBvs15"
+cDD_euc$compstat[cDD_euc$season1=="Fa"&cDD_euc$season2=="Sp"&cDD_euc$station1=="110"&cDD_euc$station2=="MLB"]<-"Sp-Fa_MLBvs110"
+cDD_euc$compstat[cDD_euc$season1=="Fa"&cDD_euc$season2=="Sp"&cDD_euc$station1=="110"&cDD_euc$station2=="15"]<-"Sp-Fa_15vs110"
+
+cDD_euc$compfrac[cDD_euc$season1=="Fa"&cDD_euc$season2=="Sp"&cDD_euc$fraction1=="B"&cDD_euc$fraction2=="B"]<-"Sp-Fa_FL"
+cDD_euc$compfrac[cDD_euc$season1=="Fa"&cDD_euc$season2=="Sp"&cDD_euc$fraction1=="E"&cDD_euc$fraction2=="E"]<-"Sp-Fa_PA"
+cDD_euc$compfrac[cDD_euc$season1=="Fa"&cDD_euc$season2=="Sp"&cDD_euc$fraction1=="B"&cDD_euc$fraction2=="E"]<-"Sp-Fa_FLvsPA"
+cDD_euc$compfrac[cDD_euc$season1=="Fa"&cDD_euc$season2=="Sp"&cDD_euc$fraction1=="E"&cDD_euc$fraction2=="B"]<-"Sp-Fa_FLvsPA"
+
+cDD_euc$compdepth[cDD_euc$season1=="Fa"&cDD_euc$season2=="Sp"&cDD_euc$depth1=="S"&cDD_euc$depth2=="S"]<-"Sp-Fa_Surf"
+cDD_euc$compdepth[cDD_euc$season1=="Fa"&cDD_euc$season2=="Sp"&cDD_euc$depth1=="D"&cDD_euc$depth2=="D"]<-"Sp-Fa_Deep"
+cDD_euc$compdepth[cDD_euc$season1=="Fa"&cDD_euc$season2=="Sp"&cDD_euc$depth1=="S"&cDD_euc$depth2=="D"]<-"Sp-Fa_SurfvsDeep"
+cDD_euc$compdepth[cDD_euc$season1=="Fa"&cDD_euc$season2=="Sp"&cDD_euc$depth1=="D"&cDD_euc$depth2=="S"]<-"Sp-Fa_SurfvsDeep"
+
+cDD_euc$complake[cDD_euc$season1=="Su"&cDD_euc$season2=="Fa"&cDD_euc$station1=="MLB"&cDD_euc$station2=="MLB"]<-"Su-Fa_MLB"
+cDD_euc$complake[cDD_euc$season1=="Su"&cDD_euc$season2=="Fa"&cDD_euc$station1=="15"&cDD_euc$station2=="15"]<-"Su-Fa_LM"
+cDD_euc$complake[cDD_euc$season1=="Su"&cDD_euc$season2=="Fa"&cDD_euc$station1=="110"&cDD_euc$station2=="110"]<-"Su-Fa_LM"
+cDD_euc$complake[cDD_euc$season1=="Su"&cDD_euc$season2=="Fa"&cDD_euc$station1=="MLB"&cDD_euc$station2=="15"]<-"Su-Fa_MLBvsLM"
+cDD_euc$complake[cDD_euc$season1=="Su"&cDD_euc$season2=="Fa"&cDD_euc$station1=="MLB"&cDD_euc$station2=="110"]<-"Su-Fa_MLBvsLM"
+cDD_euc$complake[cDD_euc$season1=="Su"&cDD_euc$season2=="Fa"&cDD_euc$station1=="15"&cDD_euc$station2=="110"]<-"Su-Fa_LM"
+cDD_euc$complake[cDD_euc$season1=="Su"&cDD_euc$season2=="Fa"&cDD_euc$station1=="15"&cDD_euc$station2=="MLB"]<-"Su-Fa_MLBvsLM"
+cDD_euc$complake[cDD_euc$season1=="Su"&cDD_euc$season2=="Fa"&cDD_euc$station1=="110"&cDD_euc$station2=="MLB"]<-"Su-Fa_MLBvsLM"
+cDD_euc$complake[cDD_euc$season1=="Su"&cDD_euc$season2=="Fa"&cDD_euc$station1=="110"&cDD_euc$station2=="15"]<-"Su-Fa_LM"
+
+cDD_euc$compstat[cDD_euc$season1=="Su"&cDD_euc$season2=="Fa"&cDD_euc$station1=="MLB"&cDD_euc$station2=="MLB"]<-"Su-Fa_MLB"
+cDD_euc$compstat[cDD_euc$season1=="Su"&cDD_euc$season2=="Fa"&cDD_euc$station1=="15"&cDD_euc$station2=="15"]<-"Su-Fa_15"
+cDD_euc$compstat[cDD_euc$season1=="Su"&cDD_euc$season2=="Fa"&cDD_euc$station1=="110"&cDD_euc$station2=="110"]<-"Su-Fa_110"
+cDD_euc$compstat[cDD_euc$season1=="Su"&cDD_euc$season2=="Fa"&cDD_euc$station1=="MLB"&cDD_euc$station2=="15"]<-"Su-Fa_MLBvs15"
+cDD_euc$compstat[cDD_euc$season1=="Su"&cDD_euc$season2=="Fa"&cDD_euc$station1=="MLB"&cDD_euc$station2=="110"]<-"Su-Fa_MLBvs110"
+cDD_euc$compstat[cDD_euc$season1=="Su"&cDD_euc$season2=="Fa"&cDD_euc$station1=="15"&cDD_euc$station2=="110"]<-"Su-Fa_15vs110"
+cDD_euc$compstat[cDD_euc$season1=="Su"&cDD_euc$season2=="Fa"&cDD_euc$station1=="15"&cDD_euc$station2=="MLB"]<-"Su-Fa_MLBvs15"
+cDD_euc$compstat[cDD_euc$season1=="Su"&cDD_euc$season2=="Fa"&cDD_euc$station1=="110"&cDD_euc$station2=="MLB"]<-"Su-Fa_MLBvs110"
+cDD_euc$compstat[cDD_euc$season1=="Su"&cDD_euc$season2=="Fa"&cDD_euc$station1=="110"&cDD_euc$station2=="15"]<-"Su-Fa_15vs110"
+
+cDD_euc$compfrac[cDD_euc$season1=="Su"&cDD_euc$season2=="Fa"&cDD_euc$fraction1=="B"&cDD_euc$fraction2=="B"]<-"Su-Fa_FL"
+cDD_euc$compfrac[cDD_euc$season1=="Su"&cDD_euc$season2=="Fa"&cDD_euc$fraction1=="E"&cDD_euc$fraction2=="E"]<-"Su-Fa_PA"
+cDD_euc$compfrac[cDD_euc$season1=="Su"&cDD_euc$season2=="Fa"&cDD_euc$fraction1=="B"&cDD_euc$fraction2=="E"]<-"Su-Fa_FLvsPA"
+cDD_euc$compfrac[cDD_euc$season1=="Su"&cDD_euc$season2=="Fa"&cDD_euc$fraction1=="E"&cDD_euc$fraction2=="B"]<-"Su-Fa_FLvsPA"
+
+cDD_euc$compdepth[cDD_euc$season1=="Su"&cDD_euc$season2=="Fa"&cDD_euc$depth1=="S"&cDD_euc$depth2=="S"]<-"Su-Fa_Surf"
+cDD_euc$compdepth[cDD_euc$season1=="Su"&cDD_euc$season2=="Fa"&cDD_euc$depth1=="D"&cDD_euc$depth2=="D"]<-"Su-Fa_Deep"
+cDD_euc$compdepth[cDD_euc$season1=="Su"&cDD_euc$season2=="Fa"&cDD_euc$depth1=="S"&cDD_euc$depth2=="D"]<-"Su-Fa_SurfvsDeep"
+cDD_euc$compdepth[cDD_euc$season1=="Su"&cDD_euc$season2=="Fa"&cDD_euc$depth1=="D"&cDD_euc$depth2=="S"]<-"Su-Fa_SurfvsDeep"
+
+cDD_euc$complake[cDD_euc$season1=="Fa"&cDD_euc$season2=="Su"&cDD_euc$station1=="MLB"&cDD_euc$station2=="MLB"]<-"Su-Fa_MLB"
+cDD_euc$complake[cDD_euc$season1=="Fa"&cDD_euc$season2=="Su"&cDD_euc$station1=="15"&cDD_euc$station2=="15"]<-"Su-Fa_LM"
+cDD_euc$complake[cDD_euc$season1=="Fa"&cDD_euc$season2=="Su"&cDD_euc$station1=="110"&cDD_euc$station2=="110"]<-"Su-Fa_LM"
+cDD_euc$complake[cDD_euc$season1=="Fa"&cDD_euc$season2=="Su"&cDD_euc$station1=="MLB"&cDD_euc$station2=="15"]<-"Su-Fa_MLBvsLM"
+cDD_euc$complake[cDD_euc$season1=="Fa"&cDD_euc$season2=="Su"&cDD_euc$station1=="MLB"&cDD_euc$station2=="110"]<-"Su-Fa_MLBvsLM"
+cDD_euc$complake[cDD_euc$season1=="Fa"&cDD_euc$season2=="Su"&cDD_euc$station1=="15"&cDD_euc$station2=="110"]<-"Su-Fa_LM"
+cDD_euc$complake[cDD_euc$season1=="Fa"&cDD_euc$season2=="Su"&cDD_euc$station1=="15"&cDD_euc$station2=="MLB"]<-"Su-Fa_MLBvsLM"
+cDD_euc$complake[cDD_euc$season1=="Fa"&cDD_euc$season2=="Su"&cDD_euc$station1=="110"&cDD_euc$station2=="MLB"]<-"Su-Fa_MLBvsLM"
+cDD_euc$complake[cDD_euc$season1=="Fa"&cDD_euc$season2=="Su"&cDD_euc$station1=="110"&cDD_euc$station2=="15"]<-"Su-Fa_LM"
+
+cDD_euc$compstat[cDD_euc$season1=="Fa"&cDD_euc$season2=="Su"&cDD_euc$station1=="MLB"&cDD_euc$station2=="MLB"]<-"Su-Fa_MLB"
+cDD_euc$compstat[cDD_euc$season1=="Fa"&cDD_euc$season2=="Su"&cDD_euc$station1=="15"&cDD_euc$station2=="15"]<-"Su-Fa_15"
+cDD_euc$compstat[cDD_euc$season1=="Fa"&cDD_euc$season2=="Su"&cDD_euc$station1=="110"&cDD_euc$station2=="110"]<-"Su-Fa_110"
+cDD_euc$compstat[cDD_euc$season1=="Fa"&cDD_euc$season2=="Su"&cDD_euc$station1=="MLB"&cDD_euc$station2=="15"]<-"Su-Fa_MLBvs15"
+cDD_euc$compstat[cDD_euc$season1=="Fa"&cDD_euc$season2=="Su"&cDD_euc$station1=="MLB"&cDD_euc$station2=="110"]<-"Su-Fa_MLBvs110"
+cDD_euc$compstat[cDD_euc$season1=="Fa"&cDD_euc$season2=="Su"&cDD_euc$station1=="15"&cDD_euc$station2=="110"]<-"Su-Fa_15vs110"
+cDD_euc$compstat[cDD_euc$season1=="Fa"&cDD_euc$season2=="Su"&cDD_euc$station1=="15"&cDD_euc$station2=="MLB"]<-"Su-Fa_MLBvs15"
+cDD_euc$compstat[cDD_euc$season1=="Fa"&cDD_euc$season2=="Su"&cDD_euc$station1=="110"&cDD_euc$station2=="MLB"]<-"Su-Fa_MLBvs110"
+cDD_euc$compstat[cDD_euc$season1=="Fa"&cDD_euc$season2=="Su"&cDD_euc$station1=="110"&cDD_euc$station2=="15"]<-"Su-Fa_15vs110"
+
+cDD_euc$compfrac[cDD_euc$season1=="Fa"&cDD_euc$season2=="Su"&cDD_euc$fraction1=="B"&cDD_euc$fraction2=="B"]<-"Su-Fa_FL"
+cDD_euc$compfrac[cDD_euc$season1=="Fa"&cDD_euc$season2=="Su"&cDD_euc$fraction1=="E"&cDD_euc$fraction2=="E"]<-"Su-Fa_PA"
+cDD_euc$compfrac[cDD_euc$season1=="Fa"&cDD_euc$season2=="Su"&cDD_euc$fraction1=="B"&cDD_euc$fraction2=="E"]<-"Su-Fa_FLvsPA"
+cDD_euc$compfrac[cDD_euc$season1=="Fa"&cDD_euc$season2=="Su"&cDD_euc$fraction1=="E"&cDD_euc$fraction2=="B"]<-"Su-Fa_FLvsPA"
+
+cDD_euc$compdepth[cDD_euc$season1=="Fa"&cDD_euc$season2=="Su"&cDD_euc$depth1=="S"&cDD_euc$depth2=="S"]<-"Su-Fa_Surf"
+cDD_euc$compdepth[cDD_euc$season1=="Fa"&cDD_euc$season2=="Su"&cDD_euc$depth1=="D"&cDD_euc$depth2=="D"]<-"Su-Fa_Deep"
+cDD_euc$compdepth[cDD_euc$season1=="Fa"&cDD_euc$season2=="Su"&cDD_euc$depth1=="S"&cDD_euc$depth2=="D"]<-"Su-Fa_SurfvsDeep"
+cDD_euc$compdepth[cDD_euc$season1=="Fa"&cDD_euc$season2=="Su"&cDD_euc$depth1=="D"&cDD_euc$depth2=="S"]<-"Su-Fa_SurfvsDeep"
+
+#removing self comparisons and calculating average per group, also remove all comparisons between seasons
+cDD_euc <- subset(cDD_euc, samp1 != samp2)
+cDD_euc <- subset(cDD_euc, season1 == season2)
+cDD_euc_frac <- subset(cDD_euc, station1 == station2 & depth1 == depth2 & fraction1 != fraction2)
+cDD_euc_stat <- subset(cDD_euc, fraction1 == fraction2 & depth1 == depth2 & station1 != station2)
+cDD_euc_lake <- subset(cDD_euc, fraction1 == fraction2 & depth1 == depth2 & complake != "Sp_LM" & complake != "Su_LM" & complake != "Fa_LM")
+cDD_euc_depth <- subset(cDD_euc, station1 == station2 & fraction1 == fraction2 & depth1 != depth2)
+
+compfrac_mean <- ddply(cDD_euc_frac, ~compfrac, function(x){data.frame(compfrac_mean = mean(x$value))})
+compstat_mean <- ddply(cDD_euc_stat, ~compstat, function(x){data.frame(compstat_mean = mean(x$value))})
+complake_mean <- ddply(cDD_euc_lake, ~complake, function(x){data.frame(complake_mean = mean(x$value))})
+compdepth_mean <- ddply(cDD_euc_depth, ~compdepth, function(x){data.frame(compdepth_mean = mean(x$value))})
+
+## 1. how does distance between cDNA:DNA in different fractions change over the seasons 
+cDD_euc_frac_KW <- kruskal.test(cDD_euc_frac$value ~ as.factor(cDD_euc_frac$compfrac)) 
+print(cDD_euc_frac_KW)  # show Kruskal Wallis result
+
+# Which samples are significantly different from each other?  
+cDD_euc_frac_KW_MC <- kruskalmc(cDD_euc_frac$value ~ as.factor(cDD_euc_frac$compfrac))  ## Defaults to P < 0.05
+print(cDD_euc_frac_KW_MC)
+
+# Test to find the letters to represent significance in a plot
+euc_frac_test <- cDD_euc_frac_KW_MC$dif.com$difference # select logical vector
+names(euc_frac_test) <- row.names(cDD_euc_frac_KW_MC$dif.com) # add comparison names
+
+# create a list with "homogenous groups" coded by letter
+euc_frac_letters <- multcompLetters(euc_frac_test, compare="<", threshold=0.05, 
+                                Letters=c(letters, LETTERS, "."), reversed = FALSE)
+
+#  Extract the values from the multcompLetters object
+euc_frac_sigs_dataframe <-  data.frame(as.vector(names(euc_frac_letters$Letters)), as.vector(euc_frac_letters$Letters))
+colnames(euc_frac_sigs_dataframe) <- c("compfrac", "siglabel")
+euc_frac_try <- merge(cDD_euc_frac, euc_frac_sigs_dataframe, by = "compfrac")
+
+euc_frac_try$compfrac <-factor(euc_frac_try$compfrac,levels=c( "Sp_FLvsPA", "Su_FLvsPA", "Fa_FLvsPA"))
+
+euc_frac_sigs <- euc_frac_try %>%
+  select(season1, compfrac, siglabel) %>%
+  distinct()
+
+# plot
+pdf(file="Figures/Rplot_cDD_euc_frac_boxplot_toptaxa.pdf", width= 5, height=5, pointsize= 14)
+euc_frac_boxplot <- ggplot(euc_frac_try, aes(x = compfrac, y = value, fill = compfrac)) + geom_point(size = 2) +
+  geom_boxplot() +
+  geom_text(data = euc_frac_sigs, aes(label = siglabel, x = compfrac, y = 25), size = 4) +
+  scale_fill_manual(name = "", limits=c("Sp_FLvsPA", "Su_FLvsPA", "Fa_FLvsPA"), 
+                     values = c("Sp_FLvsPA" = "grey","Su_FLvsPA" = "grey","Fa_FLvsPA" = "grey"))+
+  scale_x_discrete(breaks=c("Sp_FLvsPA", "Su_FLvsPA", "Fa_FLvsPA"),
+                   labels=c("Spring\n(n=22)", "Summer\n(n=26)", "Fall\n(n=24)")) + 
+  xlab("Seasonal distance between cDNA:DNA ratios in FL and PA fractions)") + ylab("Euclidean distance\nlog(cDNA:DNA)") + theme_bw() +
+  theme(plot.title = element_text(face="bold", size = 12),  #Set the plot title
+                                 strip.text.x = element_blank(),  #Set the facet titles on x-axis 
+                                 strip.text.y = element_blank(),  #Set the facet titles on x-axis 
+                                 strip.background = element_blank(),  #Set the facet background to no background
+                                 axis.title.x = element_text(face="bold", size=10),  #Set the x-axis title
+                                 axis.title.y = element_text(face="bold", size=10),  #Set the y-axis title
+                                 axis.text.x = element_text(angle=0, colour = "black", 
+                                                            vjust=1, hjust = 1, size=10),  #Set the x-axis labels
+                                 axis.text.y = element_text(colour = "black", size=10),  #Set the y-axis labels
+                                 legend.title = element_text(size = 8, face="bold"),  #Set the legend title 
+                                 legend.text = element_text(size = 8),  #Set the legend text
+                                 legend.position="none", #Default the legend position to the right
+                                 plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")); euc_frac_boxplot#top, right, bottom, left
+dev.off()
+
+## 2. how does distance between cDNA:DNA in different lakes change over the seasons 
+cDD_euc_lake_KW <- kruskal.test(cDD_euc_lake$value ~ as.factor(cDD_euc_lake$complake)) 
+print(cDD_euc_lake_KW)  # show Kruskal Wallis result
+
+# Which samples are significantly different from each other?  
+cDD_euc_lake_KW_MC <- kruskalmc(cDD_euc_lake$value ~ as.factor(cDD_euc_lake$complake))  ## Defaults to P < 0.05
+print(cDD_euc_lake_KW_MC)
+
+# Test to find the letters to represent significance in a plot
+euc_lake_test <- cDD_euc_lake_KW_MC$dif.com$difference # select logical vector
+names(euc_lake_test) <- row.names(cDD_euc_lake_KW_MC$dif.com) # add comparison names
+
+# create a list with "homogenous groups" coded by letter
+euc_lake_letters <- multcompLetters(euc_lake_test, compare="<", threshold=0.05, 
+                                Letters=c(letters, LETTERS, "."), reversed = FALSE)
+
+#  Extract the values from the multcompLetters object
+euc_lake_sigs_dataframe <-  data.frame(as.vector(names(euc_lake_letters$Letters)), as.vector(euc_lake_letters$Letters))
+colnames(euc_lake_sigs_dataframe) <- c("complake", "siglabel")
+euc_lake_try <- merge(cDD_euc_lake, euc_lake_sigs_dataframe, by = "complake")
+
+euc_lake_try$complake <-factor(euc_lake_try$complake,levels=c( "Sp_MLBvsLM", "Su_MLBvsLM", "Fa_MLBvsLM"))
+
+euc_lake_sigs <- euc_lake_try %>%
+  select(season1, complake, siglabel) %>%
+  distinct()
+
+# plot
+pdf(file="Figures/Rplot_cDD_euc_lake_boxplot_toptaxa.pdf", width= 5, height=5, pointsize= 14)
+euc_lake_boxplot <- ggplot(euc_lake_try, aes(x = complake, y = value, fill = complake)) + geom_point(size = 2) +
+  geom_boxplot() +
+  geom_text(data = euc_lake_sigs, aes(label = siglabel, x = complake, y = 25), size = 4) +
+  scale_fill_manual(name = "", limits=c("Sp_MLBvsLM", "Su_MLBvsLM", "Fa_MLBvsLM"), 
+                     values = c("Sp_MLBvsLM" = "grey","Su_MLBvsLM" = "grey","Fa_MLBvsLM" = "grey"))+
+  scale_x_discrete(breaks=c("Sp_MLBvsLM", "Su_MLBvsLM", "Fa_MLBvsLM"),
+                   labels=c("Spring\n(n=16)", "Summer\n(n=26)", "Fall\n(n=24)")) + 
+  xlab("Seasonal distance between cDNA:DNA ratios in Lake MI and Muskegon Lake)") + ylab("Euclidean distance\nlog(cDNA:DNA)") + theme_bw()  +
+  theme(plot.title = element_text(face="bold", size = 12),  #Set the plot title
+                                 strip.text.x = element_blank(),  #Set the facet titles on x-axis 
+                                 strip.text.y = element_blank(),  #Set the facet titles on x-axis 
+                                 strip.background = element_blank(),  #Set the facet background to no background
+                                 axis.title.x = element_text(face="bold", size=10),  #Set the x-axis title
+                                 axis.title.y = element_text(face="bold", size=10),  #Set the y-axis title
+                                 axis.text.x = element_text(angle=0, colour = "black", 
+                                                            vjust=1, hjust = 1, size=10),  #Set the x-axis labels
+                                 axis.text.y = element_text(colour = "black", size=10),  #Set the y-axis labels
+                                 legend.title = element_text(size = 8, face="bold"),  #Set the legend title 
+                                 legend.text = element_text(size = 8),  #Set the legend text
+                                 legend.position="none", #Default the legend position to the right
+                                 plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")); euc_lake_boxplot#top, right, bottom, left
+dev.off()
+
+## 3. how does distance between cDNA:DNA in different depths change over the seasons 
+cDD_euc_depth_KW <- kruskal.test(cDD_euc_depth$value ~ as.factor(cDD_euc_depth$compdepth)) 
+print(cDD_euc_depth_KW)  # show Kruskal Wallis result
+
+# Which samples are significantly different from each other?  
+cDD_euc_depth_KW_MC <- kruskalmc(cDD_euc_depth$value ~ as.factor(cDD_euc_depth$compdepth))  ## Defaults to P < 0.05
+print(cDD_euc_depth_KW_MC)
+
+# Test to find the letters to represent significance in a plot
+euc_depth_test <- cDD_euc_depth_KW_MC$dif.com$difference # select logical vector
+names(euc_depth_test) <- row.names(cDD_euc_depth_KW_MC$dif.com) # add comparison names
+
+# create a list with "homogenous groups" coded by letter
+euc_depth_letters <- multcompLetters(euc_depth_test, compare="<", threshold=0.05, 
+                                Letters=c(letters, LETTERS, "."), reversed = FALSE)
+
+#  Extract the values from the multcompLetters object
+euc_depth_sigs_dataframe <-  data.frame(as.vector(names(euc_depth_letters$Letters)), as.vector(euc_depth_letters$Letters))
+colnames(euc_depth_sigs_dataframe) <- c("compdepth", "siglabel")
+euc_depth_try <- merge(cDD_euc_depth, euc_depth_sigs_dataframe, by = "compdepth")
+
+euc_depth_try$compdepth <-factor(euc_depth_try$compdepth,levels=c( "Sp_SurfvsDeep", "Su_SurfvsDeep", "Fa_SurfvsDeep"))
+
+euc_depth_sigs <- euc_depth_try %>%
+  select(season1, compdepth, siglabel) %>%
+  distinct()
+
+# plot
+pdf(file="Figures/Rplot_cDD_euc_depth_boxplot_toptaxa.pdf", width= 5, height=5, pointsize= 14)
+euc_depth_boxplot <- ggplot(euc_depth_try, aes(x = compdepth, y = value, fill = compdepth)) + geom_point(size = 2) +
+  geom_boxplot() +
+  geom_text(data = euc_depth_sigs, aes(label = siglabel, x = compdepth, y = 25), size = 4) +
+  scale_fill_manual(name = "", limits=c("Sp_SurfvsDeep", "Su_SurfvsDeep", "Fa_SurfvsDeep"), 
+                     values = c("Sp_SurfvsDeep" = "grey","Su_SurfvsDeep" = "grey","Fa_SurfvsDeep" = "grey"))+
+  scale_x_discrete(breaks=c("Sp_SurfvsDeep", "Su_SurfvsDeep", "Fa_SurfvsDeep"),
+                   labels=c("Spring\n(n=16)", "Summer\n(n=24)", "Fall\n(n=20)")) + 
+  xlab("Seasonal distance between cDNA:DNA ratios in surface and deep)") + ylab("Euclidean distance\nlog(cDNA:DNA)") + theme_bw()  +
+  theme(plot.title = element_text(face="bold", size = 12),  #Set the plot title
+                                 strip.text.x = element_blank(),  #Set the facet titles on x-axis 
+                                 strip.text.y = element_blank(),  #Set the facet titles on x-axis 
+                                 strip.background = element_blank(),  #Set the facet background to no background
+                                 axis.title.x = element_text(face="bold", size=10),  #Set the x-axis title
+                                 axis.title.y = element_text(face="bold", size=10),  #Set the y-axis title
+                                 axis.text.x = element_text(angle=0, colour = "black", 
+                                                            vjust=1, hjust = 1, size=10),  #Set the x-axis labels
+                                 axis.text.y = element_text(colour = "black", size=10),  #Set the y-axis labels
+                                 legend.title = element_text(size = 8, face="bold"),  #Set the legend title 
+                                 legend.text = element_text(size = 8),  #Set the legend text
+                                 legend.position="none", #Default the legend position to the right
+                                 plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")); euc_depth_boxplot#top, right, bottom, left
+dev.off()
+```
+
+## top 200 taxa extract OTUs driving patterns PCoA (Fig. 7)
+```{r top 200 taxa extract OTUs driving patterns PCoA}
+### Aim is to determine those OTUs with similar ratio between Sp PA and FL but diff between Su and Fa PA vs FL
+#create phyloseq object with raw data (not log transformed)
+cDD_TAX=tax_table(merged_final_toptaxa)
+cDD_SAM=sample_data(subset_samples(subset_samples(merged_final_toptaxa,DNA == "cD"),names != "Su.EcD.110.DN"))
+cDD_OTU_raw=otu_table(mf_cD2D,taxa_are_rows=TRUE)
+cDD_physeq_raw = phyloseq(cDD_OTU_raw,cDD_TAX,cDD_SAM)
+
+#create dataframes to perform stats on
+sample_data(cDD_physeq_raw)
+cDD_SpPA_noMLB <- data.frame(otu_table(subset_samples(subset_samples(subset_samples(cDD_physeq_raw, Season == "Sp"), Fraction == "E"), Station != "MLB")))
+cDD_SpFL_noMLB <- data.frame(otu_table(subset_samples(subset_samples(subset_samples(cDD_physeq_raw, Season == "Sp"), Fraction == "B"), Station != "MLB")))
+cDD_SuFaPA_noMLB <- data.frame(otu_table(subset_samples(subset_samples(subset_samples(cDD_physeq_raw, Season != "Sp"), Fraction == "E"), Station != "MLB")))
+cDD_SuFaFL_noMLB <- data.frame(otu_table(subset_samples(subset_samples(subset_samples(cDD_physeq_raw, Season != "Sp"), Fraction == "B"), Station != "MLB")))
+colnames(cDD_SpPA_noMLB) <- c("SpPA","SpPA","SpPA","SpPA","SpPA","SpPA")
+colnames(cDD_SpFL_noMLB) <- c("SpFL","SpFL","SpFL","SpFL","SpFL","SpFL")
+colnames(cDD_SuFaPA_noMLB) <- c("SuFaPA","SuFaPA","SuFaPA","SuFaPA","SuFaPA","SuFaPA","SuFaPA","SuFaPA","SuFaPA","SuFaPA","SuFaPA","SuFaPA")
+colnames(cDD_SuFaFL_noMLB) <- c("SuFaFL","SuFaFL","SuFaFL","SuFaFL","SuFaFL","SuFaFL","SuFaFL","SuFaFL","SuFaFL","SuFaFL","SuFaFL","SuFaFL","SuFaFL")
+cDD_SpPAFL_noMLB <- cbind(cDD_SpPA_noMLB,cDD_SpFL_noMLB)
+cDD_SuFaPAFL_noMLB <- cbind(cDD_SuFaPA_noMLB,cDD_SuFaFL_noMLB)
+
+#run wilcoxon test with Benjamani-Hochberg FDR correction
+#cDD_SpPAFL_noMLB_pvals=data.frame(p.adjust(apply(cDD_SpPAFL_noMLB, 1, function(x) wilcox.test(x[1:6],x[7:12])$p.value),"fdr"))
+cDD_SpPAFL_noMLB_pvals=data.frame(apply(cDD_SpPAFL_noMLB, 1, function(x) wilcox.test(x[1:6],x[7:12])$p.value))
+cDD_SuFaPAFL_noMLB_pvals=data.frame(p.adjust(apply(cDD_SuFaPAFL_noMLB, 1, function(x) wilcox.test(x[1:12],x[13:25])$p.value),"fdr"))
+
+#creat dataframe with log2foldchange mean and sd for each condition
+cDD_SpPAFL_noMLB_logmeanPA=data.frame(apply(cDD_SpPAFL_noMLB, 1, function(x) log(mean(x[1:6]),2)))
+cDD_SpPAFL_noMLB_logmeanFL=data.frame(apply(cDD_SpPAFL_noMLB, 1, function(x) log(mean(x[7:12]),2)))
+cDD_SuFaPAFL_noMLB_logmeanPA=data.frame(apply(cDD_SuFaPAFL_noMLB, 1, function(x) log(mean(x[1:12]),2)))
+cDD_SuFaPAFL_noMLB_logmeanFL=data.frame(apply(cDD_SuFaPAFL_noMLB, 1, function(x) log(mean(x[13:25]),2)))
+
+cDD_SpPAFL_noMLB_logsdPA=data.frame(apply(cDD_SpPAFL_noMLB, 1, function(x) log(sd(x[1:6]),2)))
+cDD_SpPAFL_noMLB_logsdFL=data.frame(apply(cDD_SpPAFL_noMLB, 1, function(x) log(sd(x[7:12]),2)))
+cDD_SuFaPAFL_noMLB_logsdPA=data.frame(apply(cDD_SuFaPAFL_noMLB, 1, function(x) log(sd(x[1:12]),2)))
+cDD_SuFaPAFL_noMLB_logsdFL=data.frame(apply(cDD_SuFaPAFL_noMLB, 1, function(x) log(sd(x[13:25]),2)))
+
+cDD_wilcox <- cbind(cDD_SpPAFL_noMLB_logmeanPA,cDD_SpPAFL_noMLB_logmeanFL,cDD_SuFaPAFL_noMLB_logmeanPA,cDD_SuFaPAFL_noMLB_logmeanFL,cDD_SpPAFL_noMLB_logsdPA,cDD_SpPAFL_noMLB_logsdFL,cDD_SuFaPAFL_noMLB_logsdPA,cDD_SuFaPAFL_noMLB_logsdFL,cDD_SpPAFL_noMLB_pvals,cDD_SuFaPAFL_noMLB_pvals)
+colnames(cDD_wilcox) <- c("SpPA_mean","SpFL_mean","SuFaPA_mean","SuFaFL_mean","SpPA_sd","SpFL_sd","SuFaPA_sd","SuFaFL_sd","SpPAFL_pvals","SuFaPAFL_pvals")
+cDD_wilcox$OTU <- rownames(cDD_wilcox)
+
+#set NaN as p value of 1 and filter p-values to identify thsoe not diff between Sp PA and FL but diff between SuFa PA and FL
+cDD_wilcox$SpPAFL_pvals[cDD_wilcox$SpPAFL_pvals=="NaN"]<-1.00
+cDD_wilcox$SuFaPAFL_pvals[cDD_wilcox$SuFaPAFL_pvals=="NaN"]<-1.00
+cDD_wilcox_simSpPAFL <- filter(cDD_wilcox, as.numeric(SpPAFL_pvals) > 0.10)
+cDD_wilcox_simSpPAFL_diffSuFaPAFL <- filter(cDD_wilcox_simSpPAFL, as.numeric(SuFaPAFL_pvals) < 0.01)
+rownames(cDD_wilcox_simSpPAFL_diffSuFaPAFL) <- cDD_wilcox_simSpPAFL_diffSuFaPAFL$OTU
+#View(cDD_wilcox_simSpPAFL_diffSuFaPAFL)
+
+#create physeq object with this subset of otus
+cDD_physeq_diffeat <- subset_taxa(cDD_physeq, Species %in% rownames(cDD_wilcox_simSpPAFL_diffSuFaPAFL))
+cDD_wilcox_simSpPAFL_diffSuFaPAFL_wtax <- cbind(cDD_wilcox_simSpPAFL_diffSuFaPAFL,tax_table(cDD_physeq_diffeat))
+
+#generate dataframe with taxa info and log2foldchange + column describing which condition (Habitat) this log2foldchange stems from
+t1 <- data.frame(c(cDD_wilcox_simSpPAFL_diffSuFaPAFL_wtax[1],cDD_wilcox_simSpPAFL_diffSuFaPAFL_wtax[13:19]))
+t1$Habitat <- "SpPA"
+colnames(t1)[1] <- "log2FoldChange"
+rownames(t1) <- t1$Species
+t2 <- data.frame(c(cDD_wilcox_simSpPAFL_diffSuFaPAFL_wtax[2],cDD_wilcox_simSpPAFL_diffSuFaPAFL_wtax[13:19]))
+t2$Habitat <- "SpFL"
+colnames(t2)[1] <- "log2FoldChange"
+rownames(t2) <- t2$Species
+t3 <- data.frame(c(cDD_wilcox_simSpPAFL_diffSuFaPAFL_wtax[3],cDD_wilcox_simSpPAFL_diffSuFaPAFL_wtax[13:19]))
+t3$Habitat <- "SuFaPA"
+colnames(t3)[1] <- "log2FoldChange"
+rownames(t3) <- t3$Species
+t4 <- data.frame(c(cDD_wilcox_simSpPAFL_diffSuFaPAFL_wtax[4],cDD_wilcox_simSpPAFL_diffSuFaPAFL_wtax[13:19]))
+t4$Habitat <- "SuFaFL"
+colnames(t4)[1] <- "log2FoldChange"
+rownames(t4) <- t4$Species
+t124 <- rbind(t1,t2,t4)
+t124avg <- ddply(t124, ~Species, function(x){data.frame(t124_mean = mean(as.numeric(x$log2FoldChange)))})
+t124sd <- ddply(t124, ~Species, function(x){data.frame(t124_sd = sd(as.numeric(x$log2FoldChange)))})
+t124summ <- cbind(t1,t124avg$t124_mean,t124sd$t124_sd) %>% select(10,2,3,4,5,6,7,8,9,11)
+t124summ$Habitat <- "SpFLSpPASuFaFL"
+colnames(t124summ)[1] <- "log2FoldChange"
+colnames(t124summ)[10] <- "stdev"
+t3$stdev = 0
+#cDD_diff <- rbind(t1,t2,t3,t4)
+cDD_diff <- rbind(t124summ,t3)
+
+#now plot data, sorting the otus based on how different SuFaPA ratio is from SpPA --- FOR FIGURE 7
+y = tapply(abs(t3$log2FoldChange-t1$log2FoldChange)-abs(t2$log2FoldChange-t1$log2FoldChange), t3$Species, function(x) max(x))
+y = sort(y, TRUE)
+cDD_diff$Species = factor(as.character(cDD_diff$Species), levels=names(y))
+pdf(file="Figures/Rplot_cDD_PCoAdrivingOTUsSpvsSuFa_noMLB.pdf", width= 10, height=7.5, pointsize= 14, useDingbats=FALSE)
+drivingOTUsSpvsSuFa_noMLB <- ggplot(cDD_diff, aes(x=Species, y=log2FoldChange, color=Habitat, shape = Habitat)) + 
+    geom_point(alpha=1, size=4) + theme_bw() +  #ggtitle(title) +  
+    scale_color_manual(name = "Habitat", breaks=c("SpFLSpPASuFaFL",  "SuFaPA"),
+                     labels = c("Mean(SpFL,SpPA,SuFaFL)",  "SuFaPA"), 
+                     values = c("SpFLSpPASuFaFL" = "black", "SuFaPA" = "darkorange")) +
+    scale_shape_manual(name = "Habitat", breaks=c("SpFLSpPASuFaFL",  "SuFaPA"),
+                     labels = c("Mean(SpFL,SpPA,SuFaFL)",  "SuFaPA"), 
+                     values = c("SpFLSpPASuFaFL" = 16,  "SuFaPA" = 17)) +
+    geom_errorbar(aes(ymin=log2FoldChange-stdev, ymax=log2FoldChange+stdev), width=.5) +
+    scale_y_continuous(breaks=seq(-3,3,1),limits=c(-3,3)) + 
+    theme(axis.title.x = element_text(face="bold", size=16),
+          axis.text.x = element_text(angle=30, colour = "black", vjust=1, hjust = 1, size=12),
+          axis.text.y = element_text(colour = "black", size=16),
+          axis.title.y = element_text(face="bold", size=16),
+          plot.title = element_text(face="bold", size = 20),
+          legend.title = element_text(size=12, face="bold"),
+          legend.text = element_text(size = 12),
+          strip.background = element_rect(colour="black"),
+          legend.position="right"); drivingOTUsSpvsSuFa_noMLB
+dev.off()
+
+#output sorted otus and taxonomy for table generation
+View(levels(cDD_diff$Species))
+View(data.frame(cDD_diff$Species,cDD_diff$Phylum,cDD_diff$Class,cDD_diff$Order,cDD_diff$Family,cDD_diff$Genus,cDD_diff$Tribe))
+```
+
+## top 200 taxa identify significantly more active than present OTUs (Fig. 4, Table 3)
+```{r identify significantly more active than present OTUs}
+########## cDNA vs DNA DEseq ##########
+
+phylum.colors<-group.colors
+
+# deseq without pruning low abundance - otu level - per fraction - PA - no scaling (done by DEseq2!)
+raw_merged_PA <- subset_samples(raw_merged_toptaxa, Fraction != "B")
+deseq_otu_DNAcDNA_PA_raw <- deSEQ_noprune(raw_merged_PA, ~ DNA)
+deseq_otu_DNAcDNA_PA_raw$plotvalue <- as.vector(as.numeric(taxa_sums(raw_merged_PA)/sum(sample_sums(raw_merged_PA))*100)^.25) # abundance scaled to optimize gradient of glyph sizes in image
+deseq_otu_DNAcDNA_PA_raw$sig <- as.factor((deseq_otu_DNAcDNA_PA_raw$padj<0.01)*1)
+deseq_otu_DNAcDNA_plot_PA_raw <- plot_deSEQ(deseq_otu_DNAcDNA_PA_raw, "OTU cDNA:DNA PA samples")
+deseq_otu_DNAcDNA_plot_PA_raw
+
+# deseq without pruning low abundance - otu level - per fraction - FL - no scaling (done by DEseq2!)
+raw_merged_FL <- subset_samples(raw_merged_toptaxa, Fraction != "E")
+deseq_otu_DNAcDNA_FL_raw <- deSEQ_noprune(raw_merged_FL, ~ DNA)
+deseq_otu_DNAcDNA_FL_raw$plotvalue <- as.vector(as.numeric(taxa_sums(raw_merged_FL)/sum(sample_sums(raw_merged_FL))*100)^.25)
+deseq_otu_DNAcDNA_FL_raw$sig <- as.factor((deseq_otu_DNAcDNA_FL_raw$padj<0.01)*1)
+deseq_otu_DNAcDNA_plot_FL_raw <- plot_deSEQ(deseq_otu_DNAcDNA_FL_raw, "OTU cDNA:DNA FL samples")
+deseq_otu_DNAcDNA_plot_FL_raw
+
+#plot together --- FOR FIGURE 4
+Phylum_temp <- as.character(deseq_otu_DNAcDNA_PA_raw$Phylum)
+for  (i in 1:length(Phylum_temp)){ 
+  Phylum_temp[i] = paste(Phylum_temp[i],"PA",sep=" ")
+} 
+deseq_otu_DNAcDNA_PA_raw$Phylum_plot <- Phylum_temp
+
+Phylum_temp <- as.character(deseq_otu_DNAcDNA_FL_raw$Phylum)
+for  (i in 1:length(Phylum_temp)){ 
+  Phylum_temp[i] = paste(Phylum_temp[i],"FL",sep=" ")
+} 
+deseq_otu_DNAcDNA_FL_raw$Phylum_plot <- Phylum_temp
+
+deseq_otu_DNAcDNA_FLandPA_raw<-rbind(deseq_otu_DNAcDNA_FL_raw,deseq_otu_DNAcDNA_PA_raw)
+
+pdf(file="Figures/Rplot_cDvsD_FL_noscale_top200.pdf", width= 10, height=15, pointsize= 14, useDingbats=FALSE)
+deseq_otu_DNAcDNA_FLandPA_raw$Phylum_plot <-factor(deseq_otu_DNAcDNA_FLandPA_raw$Phylum_plot,levels=c("Proteobacteria FL","Proteobacteria PA","Alphaproteobacteria FL","Alphaproteobacteria PA","Betaproteobacteria FL","Betaproteobacteria PA","Gammaproteobacteria FL","Gammaproteobacteria PA","Deltaproteobacteria FL","Deltaproteobacteria PA","Bacteroidetes FL","Bacteroidetes PA","Cytophagia FL","Cytophagia PA","Flavobacteria FL","Flavobacteria PA","Sphingobacteria FL","Sphingobacteria PA","Actinobacteria FL","Actinobacteria PA","Cyanobacteria FL","Cyanobacteria PA","Verrucomicrobia FL","Verrucomicrobia PA","Planctomycetes FL","Planctomycetes PA","Chloroflexi FL","Chloroflexi PA","Acidobacteria FL","Acidobacteria PA","Armatimonadetes FL","Armatimonadetes PA","Chlorobi FL","Chlorobi PA","Firmicutes FL","Firmicutes PA","Gemmatimonadetes FL","Gemmatimonadetes PA","unclassified FL","unclassified PA"))
+deseq_otu_DNAcDNA_plot_FLandPA_raw <- plot_deSEQ_combo(deseq_otu_DNAcDNA_FLandPA_raw, "OTU cDNA:DNA FL and PA samples")
+deseq_otu_DNAcDNA_plot_FLandPA_raw
+dev.off()
+
+####pull out most different, highly active OTUs  --- FOR TABLE 3
+View(deseq_otu_DNAcDNA_FLandPA_raw)
+
+```
+
+## top 200 taxa identify significantly more active than present OTUs - No Actinobacteria (to determine effect of Actinobacteria, no figure in paper, but mentioned in results)
+```{r identify significantly more active than present OTUs - No Actinobacteria}
+### cDNA vs DNA DEseq
+
+#repeat the DEseq analysis without Actinobacteria
+raw_merged_toptaxa_noAct <- subset_taxa(raw_merged_toptaxa, Phylum != "Actinobacteria")
+
+phylum.colors<-group.colors
+
+# deseq without pruning low abundance - otu level - per fraction - PA - no scaling (done by DEseq2!)
+raw_merged_PA <- subset_samples(raw_merged_toptaxa_noAct, Fraction != "B")
+deseq_otu_DNAcDNA_PA_raw <- deSEQ_noprune(raw_merged_PA, ~ DNA)
+deseq_otu_DNAcDNA_PA_raw$plotvalue <- as.vector(as.numeric(taxa_sums(raw_merged_PA)/sum(sample_sums(raw_merged_PA))*100)^.25)
+deseq_otu_DNAcDNA_PA_raw$sig <- as.factor((deseq_otu_DNAcDNA_PA_raw$padj<0.01)*1)
+deseq_otu_DNAcDNA_plot_PA_raw <- plot_deSEQ(deseq_otu_DNAcDNA_PA_raw, "OTU cDNA:DNA PA samples")
+deseq_otu_DNAcDNA_plot_PA_raw
+
+# deseq without pruning low abundance - otu level - per fraction - FL - no scaling (done by DEseq2!)
+raw_merged_FL <- subset_samples(raw_merged_toptaxa_noAct, Fraction != "E")
+deseq_otu_DNAcDNA_FL_raw <- deSEQ_noprune(raw_merged_FL, ~ DNA)
+deseq_otu_DNAcDNA_FL_raw$plotvalue <- as.vector(as.numeric(taxa_sums(raw_merged_FL)/sum(sample_sums(raw_merged_FL))*100)^.25)
+deseq_otu_DNAcDNA_FL_raw$sig <- as.factor((deseq_otu_DNAcDNA_FL_raw$padj<0.01)*1)
+deseq_otu_DNAcDNA_plot_FL_raw <- plot_deSEQ(deseq_otu_DNAcDNA_FL_raw, "OTU cDNA:DNA FL samples")
+deseq_otu_DNAcDNA_plot_FL_raw
+
+#plot together
+Phylum_temp <- as.character(deseq_otu_DNAcDNA_PA_raw$Phylum)
+for  (i in 1:length(Phylum_temp)){ 
+  Phylum_temp[i] = paste(Phylum_temp[i],"PA",sep=" ")
+} 
+deseq_otu_DNAcDNA_PA_raw$Phylum_plot <- Phylum_temp
+
+Phylum_temp <- as.character(deseq_otu_DNAcDNA_FL_raw$Phylum)
+for  (i in 1:length(Phylum_temp)){ 
+  Phylum_temp[i] = paste(Phylum_temp[i],"FL",sep=" ")
+} 
+deseq_otu_DNAcDNA_FL_raw$Phylum_plot <- Phylum_temp
+
+deseq_otu_DNAcDNA_FLandPA_raw<-rbind(deseq_otu_DNAcDNA_FL_raw,deseq_otu_DNAcDNA_PA_raw)
+
+pdf(file="Figures/Rplot_cDvsD_FL_noscale_top200_noAct.pdf", width= 10, height=7.5, pointsize= 14, useDingbats=FALSE)
+deseq_otu_DNAcDNA_FLandPA_raw$Phylum_plot <-factor(deseq_otu_DNAcDNA_FLandPA_raw$Phylum_plot,levels=c("Proteobacteria FL","Proteobacteria PA","Alphaproteobacteria FL","Alphaproteobacteria PA","Betaproteobacteria FL","Betaproteobacteria PA","Gammaproteobacteria FL","Gammaproteobacteria PA","Deltaproteobacteria FL","Deltaproteobacteria PA","Bacteroidetes FL","Bacteroidetes PA","Cytophagia FL","Cytophagia PA","Flavobacteria FL","Flavobacteria PA","Sphingobacteria FL","Sphingobacteria PA","Actinobacteria FL","Actinobacteria PA","Cyanobacteria FL","Cyanobacteria PA","Verrucomicrobia FL","Verrucomicrobia PA","Planctomycetes FL","Planctomycetes PA","Chloroflexi FL","Chloroflexi PA","Acidobacteria FL","Acidobacteria PA","Armatimonadetes FL","Armatimonadetes PA","Chlorobi FL","Chlorobi PA","Firmicutes FL","Firmicutes PA","Gemmatimonadetes FL","Gemmatimonadetes PA","unclassified FL","unclassified PA"))
+deseq_otu_DNAcDNA_plot_FLandPA_raw <- plot_deSEQ_combo(deseq_otu_DNAcDNA_FLandPA_raw, "OTU cDNA:DNA FL and PA samples")
+deseq_otu_DNAcDNA_plot_FLandPA_raw
+dev.off()
+```
+
+
