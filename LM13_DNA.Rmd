@@ -205,10 +205,10 @@ min(sample_sums(physeq_dupmerge))
 # Following code from Michelle Berry's Butterflygut website: http://rstudio-pubs-static.s3.amazonaws.com/25722_9fc9bdc48f0d4f13b05fa61baeda57a0.html#alpha-diversity
 # Rarefy to 70480 reads with replacement 100 times to estimate species richness
 # Initialize matrices to store richness and evenness estimates
-richness <- matrix(nrow = 47,ncol = 100)  # Store richness:  We have 47 samples 
-row.names(richness) <- sample_names(physeq_dupmerge)
-evenness <- matrix(nrow = 47,ncol = 100)  #Store evenness
-row.names(evenness) <- sample_names(physeq_dupmerge)
+#richness <- matrix(nrow = 47,ncol = 100)  # Store richness:  We have 47 samples 
+#row.names(richness) <- sample_names(physeq_dupmerge)
+#evenness <- matrix(nrow = 47,ncol = 100)  #Store evenness
+#row.names(evenness) <- sample_names(physeq_dupmerge)
 
 # We want to be reproducible - so let's set the seed.
 set.seed(3)
@@ -259,7 +259,7 @@ simps_even$Duplicates <- as.character(simps_even$samples)
 simps_even <- merge(simps_even,data.frame(duplicate_metadata),by="Duplicates")
 ```
 
-```{r richness}
+```{r richness plots}
 ###RICHNESS PLOTS
 ## 1. richness differences based on Season
 rich_Season_KW <- kruskal.test(rich_stats$mean ~ as.factor(rich_stats$Season)) 
@@ -288,14 +288,27 @@ rich_Season_KW_sigs <- rich_Season_KW_try %>%
   select(Season, Season, siglabel) %>%
   distinct()
 
-# finally, the plot
-pdf(file="Figures/Rplot_Richness_Season_boxplot.pdf", width= 5, height=5, pointsize= 14)
+# finally, the plot, after first setting the order of the factor levels
 alpha_title <- paste("Richness when rarefied at",min(sample_sums(physeq_dupmerge)),"reads")
-rich_Season_boxplot <- ggplot(rich_Season_KW_try, aes(x = Season, y = mean, fill = Season)) + geom_point(size = 2) +
-  geom_boxplot()  + ggtitle(alpha_title) +
+rich_Season_KW_try$Fraction <- factor(rich_Season_KW_try$Fraction,levels=c("B","E"))
+rich_Season_KW_try$Season <- factor(rich_Season_KW_try$Season,levels=c("Sp","Su","Fa"))
+rich_Season_KW_try$Station <- factor(rich_Season_KW_try$Station,levels=c("MLB","MM15","MM110"))
+rich_Season_KW_try$Depth_C <- factor(rich_Season_KW_try$Depth_C,levels=c("S","M","D"))
+
+pdf(file="Figures/Rplot_Richness_Season_boxplot.pdf", width= 5, height=5, pointsize= 14)
+rich_Season_boxplot <- ggplot(rich_Season_KW_try, aes(x = Season, y = mean))  +
+  geom_boxplot(outlier.size = 0)  + ggtitle(alpha_title) +
+  geom_point(aes(color=Season,shape = Station,size = Fraction,fill=Depth_C), position = position_dodge(0.8)) +
   geom_text(data = rich_Season_KW_sigs, aes(label = siglabel, x = Season, y = .95), size = 4) +
-  scale_fill_manual(name = "", limits=c("Sp", "Su", "Fa"), 
-                     values = c("Sp" = "grey","Su" = "grey","Fa" = "grey"))+
+  scale_color_manual(name = "season", values = c("Sp" = "darkgreen", "Su" = "red", "Fa" = "mediumblue"),
+                     labels = c("Spring",  "Summer", "Fall")) +
+  scale_shape_manual(name = "station", values = c("MLB" = 21, "MM15" = 22, "MM110" = 24),
+                     labels = c("Estuary", "Nearshore",  "Offshore")) + 
+  scale_size_manual(name = "fraction", breaks = c("B","E"), 
+                     labels = c("Free","Particle"),
+                     values = c("B" = 2, "E" = 4)) +
+  scale_fill_manual(name = "depth",  values = c("D" = "black", "M" = "grey", "S" = "white"), 
+                     labels = c("Deep","Chla max","Surface")) +
   scale_x_discrete(breaks=c("Sp", "Su", "Fa"),
                    labels=c("Spring\n(n=14)","Summer\n(n=17)", "Fall\n(n=16)")) + 
   xlab("Season)") + ylab("Observed Richness") + theme_bw() + 
@@ -310,7 +323,7 @@ rich_Season_boxplot <- ggplot(rich_Season_KW_try, aes(x = Season, y = mean, fill
                                  axis.text.y = element_text(colour = "black", size=10),  #Set the y-axis labels
                                  legend.title = element_text(size = 8, face="bold"),  #Set the legend title 
                                  legend.text = element_text(size = 8),  #Set the legend text
-                                 legend.position="none", #Default the legend position to the right
+                                 legend.position="right", #Default the legend position to the right
                                  plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")); rich_Season_boxplot #top, right, bottom, left
 dev.off()
 
@@ -342,16 +355,28 @@ rich_Fraction_KW_sigs <- rich_Fraction_KW_try %>%
   distinct()
 
 # finally, the plot
-pdf(file="Figures/Rplot_Richness_Fraction_boxplot.pdf", width= 5, height=5, pointsize= 14)
 alpha_title <- paste("Richness when rarefied at",min(sample_sums(physeq_dupmerge)),"reads")
-rich_Fraction_boxplot <- ggplot(rich_Fraction_KW_try, aes(x = Fraction, y = mean, fill = Fraction)) + geom_point(size = 2) +
-  geom_boxplot()  + ggtitle(alpha_title) +
+rich_Fraction_KW_try$Fraction <- factor(rich_Fraction_KW_try$Fraction,levels=c("B","E"))
+rich_Fraction_KW_try$Season <- factor(rich_Fraction_KW_try$Season,levels=c("Sp","Su","Fa"))
+rich_Fraction_KW_try$Station <- factor(rich_Fraction_KW_try$Station,levels=c("MLB","MM15","MM110"))
+rich_Fraction_KW_try$Depth_C <- factor(rich_Fraction_KW_try$Depth_C,levels=c("S","M","D"))
+
+pdf(file="Figures/Rplot_Richness_Fraction_boxplot.pdf", width= 5, height=5, pointsize= 14)
+rich_Fraction_boxplot <- ggplot(rich_Fraction_KW_try, aes(x = Fraction, y = mean))  +
+  geom_boxplot(outlier.size = 0)  + ggtitle(alpha_title) +
+  geom_point(aes(color=Season,shape = Station,size = Fraction,fill=Depth_C), position = position_dodge(0.8)) +
   geom_text(data = rich_Fraction_KW_sigs, aes(label = siglabel, x = Fraction, y = .95), size = 4) +
-  scale_fill_manual(name = "", limits=c("B", "E"), 
-                     values = c("B" = "grey","E" = "grey"))+
-  scale_x_discrete(breaks=c("B", "E"),
+  scale_color_manual(name = "season", breaks = c("Sp","Su","Fa"),values = c("Sp" = "darkgreen", "Su" = "red", "Fa" = "mediumblue"),labels = c("Spring",  "Summer", "Fall")) +
+  scale_shape_manual(name = "station", values = c("MLB" = 21, "MM15" = 22, "MM110" = 24),
+                      labels = c("Estuary", "Nearshore",  "Offshore")) + 
+  scale_size_manual(name = "fraction", breaks = c("B","E"), 
+                     labels = c("Free","Particle"),
+                     values = c("B" = 2, "E" = 4)) +
+  scale_fill_manual(name = "depth",  values = c("D" = "black", "M" = "grey", "S" = "white"), 
+                     labels = c("Deep","Chla max","Surface")) +
+ scale_x_discrete(breaks=c("B", "E"),
                    labels=c("Free-living\n(n=24)","Particle-associated\n(n=23)")) + 
-  xlab("Fraction)") + ylab("Observed Richness") + theme_bw() + 
+   xlab("Fraction)") + ylab("Observed Richness") + theme_bw() + 
   theme(plot.title = element_text(face="bold", size = 12),  #Set the plot title
                                  strip.text.x = element_blank(),  #Set the facet titles on x-axis 
                                  strip.text.y = element_blank(),  #Set the facet titles on x-axis 
@@ -363,9 +388,10 @@ rich_Fraction_boxplot <- ggplot(rich_Fraction_KW_try, aes(x = Fraction, y = mean
                                  axis.text.y = element_text(colour = "black", size=10),  #Set the y-axis labels
                                  legend.title = element_text(size = 8, face="bold"),  #Set the legend title 
                                  legend.text = element_text(size = 8),  #Set the legend text
-                                 legend.position="none", #Default the legend position to the right
+                                 legend.position="right", #Default the legend position to the right
                                  plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")); rich_Fraction_boxplot #top, right, bottom, left
 dev.off()
+
 
 ## 3. richness differences based on Station
 rich_Station_KW <- kruskal.test(rich_stats$mean ~ as.factor(rich_stats$Station)) 
@@ -395,13 +421,25 @@ rich_Station_KW_sigs <- rich_Station_KW_try %>%
   distinct()
 
 # finally, the plot
-pdf(file="Figures/Rplot_Richness_Station_boxplot.pdf", width= 5, height=5, pointsize= 14)
 alpha_title <- paste("Richness when rarefied at",min(sample_sums(physeq_dupmerge)),"reads")
-rich_Station_boxplot <- ggplot(rich_Station_KW_try, aes(x = Station, y = mean, fill = Station)) + geom_point(size = 2) +
-  geom_boxplot()  + ggtitle(alpha_title) +
+rich_Station_KW_try$Fraction <- factor(rich_Station_KW_try$Fraction,levels=c("B","E"))
+rich_Station_KW_try$Season <- factor(rich_Station_KW_try$Season,levels=c("Sp","Su","Fa"))
+rich_Station_KW_try$Station <- factor(rich_Station_KW_try$Station,levels=c("MLB","MM15","MM110"))
+rich_Station_KW_try$Depth_C <- factor(rich_Station_KW_try$Depth_C,levels=c("S","M","D"))
+
+pdf(file="Figures/Rplot_Richness_Station_boxplot.pdf", width= 5, height=5, pointsize= 14)
+rich_Station_boxplot <- ggplot(rich_Station_KW_try, aes(x = Station, y = mean))  +
+  geom_boxplot(outlier.size = 0)  + ggtitle(alpha_title) +
+  geom_point(aes(color=Season,shape = Station,size = Fraction,fill=Depth_C), position = position_dodge(0.8)) +
   geom_text(data = rich_Station_KW_sigs, aes(label = siglabel, x = Station, y = .95), size = 4) +
-  scale_fill_manual(name = "", limits=c("MLB", "MM15", "MM110"), 
-                     values = c("MLB" = "grey","MM15" = "grey","MM110" = "grey"))+
+  scale_color_manual(name = "season", breaks = c("Sp","Su","Fa"),values = c("Sp" = "darkgreen", "Su" = "red", "Fa" = "mediumblue"),labels = c("Spring",  "Summer", "Fall")) +
+  scale_shape_manual(name = "station", values = c("MLB" = 21, "MM15" = 22, "MM110" = 24),
+                      labels = c("Estuary", "Nearshore",  "Offshore")) + 
+  scale_size_manual(name = "fraction", breaks = c("B","E"), 
+                     labels = c("Free","Particle"),
+                     values = c("B" = 2, "E" = 4)) +
+  scale_fill_manual(name = "depth",  values = c("D" = "black", "M" = "grey", "S" = "white"), 
+                     labels = c("Deep","Chla max","Surface")) +
   scale_x_discrete(breaks=c("MLB", "MM15", "MM110"),
                    labels=c("Estuary\n(n=10)","Nearshore\n(n=18)", "Offshore\n(n=19)")) + 
   xlab("Station)") + ylab("Observed Richness") + theme_bw() + 
@@ -416,9 +454,10 @@ rich_Station_boxplot <- ggplot(rich_Station_KW_try, aes(x = Station, y = mean, f
                                  axis.text.y = element_text(colour = "black", size=10),  #Set the y-axis labels
                                  legend.title = element_text(size = 8, face="bold"),  #Set the legend title 
                                  legend.text = element_text(size = 8),  #Set the legend text
-                                 legend.position="none", #Default the legend position to the right
+                                 legend.position="right", #Default the legend position to the right
                                  plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")); rich_Station_boxplot #top, right, bottom, left
 dev.off()
+
 
 ## 4. richness differences based on Depth_C
 #rich_stats_off <- rich_stats[rich_stats$Station == "MM110" & rich_stats$Season == "Su", ]
@@ -450,13 +489,25 @@ rich_Depth_C_KW_sigs <- rich_Depth_C_KW_try %>%
   distinct()
 
 # finally, the plot
-pdf(file="Figures/Rplot_Richness_Depth_C_boxplot.pdf", width= 5, height=5, pointsize= 14)
 alpha_title <- paste("Richness when rarefied at",min(sample_sums(physeq_dupmerge)),"reads")
-rich_Depth_C_boxplot <- ggplot(rich_Depth_C_KW_try, aes(x = Depth_C, y = mean, fill = Depth_C)) + geom_point(size = 2) +
-  geom_boxplot()  + ggtitle(alpha_title) +
+rich_Depth_C_KW_try$Fraction <- factor(rich_Depth_C_KW_try$Fraction,levels=c("B","E"))
+rich_Depth_C_KW_try$Season <- factor(rich_Depth_C_KW_try$Season,levels=c("Sp","Su","Fa"))
+rich_Depth_C_KW_try$Station <- factor(rich_Depth_C_KW_try$Station,levels=c("MLB","MM15","MM110"))
+rich_Depth_C_KW_try$Depth_C <- factor(rich_Depth_C_KW_try$Depth_C,levels=c("S","M","D"))
+
+pdf(file="Figures/Rplot_Richness_Depth_C_boxplot.pdf", width= 5, height=5, pointsize= 14)
+rich_Depth_C_boxplot <- ggplot(rich_Depth_C_KW_try, aes(x = Depth_C, y = mean))  +
+  geom_boxplot(outlier.size = 0)  + ggtitle(alpha_title) +
+  geom_point(aes(color=Season,shape = Station,size = Fraction,fill=Depth_C), position = position_dodge(0.8)) +
   geom_text(data = rich_Depth_C_KW_sigs, aes(label = siglabel, x = Depth_C, y = .95), size = 4) +
-  scale_fill_manual(name = "", limits=c("S", "M", "D"), 
-                     values = c("S" = "grey","M" = "grey","D" = "grey"))+
+  scale_color_manual(name = "season", breaks = c("Sp","Su","Fa"),values = c("Sp" = "darkgreen", "Su" = "red", "Fa" = "mediumblue"),labels = c("Spring",  "Summer", "Fall")) +
+  scale_shape_manual(name = "station", values = c("MLB" = 21, "MM15" = 22, "MM110" = 24),
+                      labels = c("Estuary", "Nearshore",  "Offshore")) + 
+  scale_size_manual(name = "fraction", breaks = c("B","E"), 
+                     labels = c("Free","Particle"),
+                     values = c("B" = 2, "E" = 4)) +
+  scale_fill_manual(name = "depth",  values = c("D" = "black", "M" = "grey", "S" = "white"), 
+                     labels = c("Deep","Chla max","Surface")) +
   scale_x_discrete(breaks=c("S", "M", "D"),
                    labels=c("Surface\n(n=30)","Chla max\n(n=2)","Deep\n(n=15)")) + 
   xlab("Depth_C)") + ylab("Observed Richness") + theme_bw() + 
@@ -471,9 +522,10 @@ rich_Depth_C_boxplot <- ggplot(rich_Depth_C_KW_try, aes(x = Depth_C, y = mean, f
                                  axis.text.y = element_text(colour = "black", size=10),  #Set the y-axis labels
                                  legend.title = element_text(size = 8, face="bold"),  #Set the legend title 
                                  legend.text = element_text(size = 8),  #Set the legend text
-                                 legend.position="none", #Default the legend position to the right
+                                 legend.position="right", #Default the legend position to the right
                                  plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")); rich_Depth_C_boxplot #top, right, bottom, left
 dev.off()
+
 ```
 
 ```{r evenness plots} 
@@ -911,7 +963,98 @@ pcoa_SOR13_DNA <- ggplot(physeq.pcoa.sor.df, aes(-Axis.1, -Axis.3, color = Seaso
 ```
 
 ##Figure 3: cyano, mixo, hetero
-```{r alpha diversity metrics calculation}
+```{r barplots}
+
+#Replaces phylum info with functional group information based on Phylum and Family information
+physeq.fg <- physeq
+phy <- data.frame(tax_table(physeq.fg))
+Phylum <- as.character(phy$Phylum)
+Family <- as.character(phy$Family)
+
+#Include bacteriochlorophyl-containing organisms as per http://mmbr.asm.org/content/62/3/695.abstract?ijkey=87bc0335b3da193292146dd6302d0808bb623bda&keytype2=tf_ipsecsha as putative AAP mixotrophs (aerobic anoxygenic photoheterotrophs) and http://aem.asm.org/content/72/12/7431.full
+#Roseomonas: http://www.sciencedirect.com/science/article/pii/S0723202009001271
+
+for  (i in 1:length(Phylum)){ 
+  if (Phylum[i] != "Cyanobacteria"){
+    if (Family[i] == "Rhodobacteraceae"){
+      Phylum[i] <- "Putative_mixotroph"       
+    } else {
+      Phylum[i] <- "Putative_heterotroph"
+    }
+  } 
+}
+
+phy$Phylum <- Phylum
+t <- tax_table(as.matrix(phy))
+tax_table(physeq.fg) <- t
+
+#merge by combining diel samples at same station, then scale
+physeq.fg <- merge_samples(physeq.fg,"Duplicates_nodiel")
+
+# Weird bug, set taxa to rows
+if (!taxa_are_rows(physeq.fg)) {
+  otu_table(physeq.fg) <- t(otu_table(physeq.fg))
+}
+
+## Fix metadata of merged duplicates 
+# Grab unique lines (first entry) from inland phyloseq object metadata
+unique_idx <- !(duplicated(sample_data(physeq)$Duplicates_nodiel))
+fg_metadata <- sample_data(physeq)[unique_idx, ]
+# Assign new metadata to phyloseq object
+sample_data(physeq.fg) <- fg_metadata
+physeq.fg <- prune_taxa(taxa_sums(physeq.fg) > 0, physeq.fg)
+
+#check number of reads in each sample, differences in count are in part due differet numbers of chlorophyl reads depending on sample
+sampsums <- data.frame(sums = sample_sums(physeq.fg))
+ggplot(sampsums, aes(x = sums)) + geom_histogram(binwidth = 10000)
+min(sampsums)
+max(sampsums)
+
+# Scales reads to smallest library size which is 100,766
+physeq.fg.scale <- scale_reads(physeq.fg, min(sample_sums(physeq.fg)))
+physeq.fg.scale <- prune_taxa(taxa_sums(physeq.fg.scale) > 0, physeq.fg.scale)
+
+# Keep OTUs above average relative abundance of 10 reads (0.01% after scaling) 
+mean(sample_sums(physeq.fg.scale))
+
+a <- apply(otu_table(physeq.fg.scale), MARGIN = 1, function(x) {mean(x)} )
+keep <- a > 10
+physeq.fg.scale.prune <- prune_taxa(keep, physeq.fg.scale)
+ntaxa(physeq.fg.scale.prune) 
+
+View(tax_table(physeq.fg.scale.prune))
+
+
+### determine how many sequences included for each sample when only considering abundant OTUs
+relab_toptaxa <- sample_sums(physeq.fg.scale.prune)/sample_sums(physeq.fg.scale)*100
+mean(relab_toptaxa)
+min(relab_toptaxa)
+max(relab_toptaxa)
+median(relab_toptaxa)
+sd(relab_toptaxa)
+relab_toptaxa <- data.frame(relab_toptaxa)
+ggplot(relab_toptaxa, aes(x = relab_toptaxa)) + geom_histogram(binwidth = .05)
+
+# Now generate data frame in long format (the output from miseqR.R transform_and_melt function) 
+# and produce a stacked barplot of community composition.
+fg_relab<-transform_and_melt(physeq.fg.scale.prune,"Phylum",0.01)
+
+fg.colors <- c("chartreuse3","darkred", "steelblue4")
+
+fg_relab$Season <- factor(fg_relab$Season, levels = c("Sp","Su","Fa"))
+fg_relab$Depth_C <- factor(fg_relab$Depth_C, levels = c("S","M","D"))
+
+# Plot
+ggplot(fg_relab,aes(x = Station, y = Abundance, fill=Taxonomy)) + 
+  facet_grid(Depth_C+Fraction~Season, scales = "free_y") +
+  geom_bar(stat = "identity") +
+  geom_bar(stat = "identity",position = "fill",colour = "black",show.legend = FALSE) +
+  scale_fill_manual(values = fg.colors) +
+  guides(fill = guide_legend(reverse = TRUE, keywidth = 1, keyheight = 1)) +
+  ylab("Relative Abundance\n") +
+  theme(axis.title.x =element_blank(),strip.text =element_text(size = 14)
+)
+
 
 ```
 
