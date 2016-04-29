@@ -37,6 +37,8 @@ library(pegas)
 library(pgirmess)
 library(multcomp)
 library(multcompView)
+library(grid)
+library(gridExtra)
 theme_set(theme_bw())
 
 source("/Users/vdenef/Documents/UMich/Digital_Notebooks/GitHub/MicrobeMiseq/R/miseqR.R")
@@ -62,8 +64,123 @@ set_ggtheme <- theme_set(theme_bw() +
 group.colors <- c(Acidobacteria = "grey26", Actinobacteria = "royalblue", Alphaproteobacteria = "steelblue4", Armatimonadetes = "red", Bacteroidetes = "darkred", "BD1-5" = "chartreuse", Betaproteobacteria = "steelblue4", Caldiserica = "black","Candidate_division_BRC1" = "violetred4", "Candidate_division_JS1" = "aquamarine1", "Candidate_division_OD1" = "#6DDE88", "Candidate_division_OP3" = "hotpink", "Candidate_division_OP8" = "goldenrod1", "Candidate_division_OP11" = "chocolate4", "Candidate_division_SR1" = "tan3", "Candidate_division_TM7" = "skyblue1", "Candidate_division_WS3" = "magenta", Chlamydiae="violet", Chlorobi="cyan2", Chloroflexi="darkgreen", Cyanobacteria = "chartreuse3", Deferribacteres = "slateblue3", "Deinococcus-Thermus" = "violetred", Dictyoglomi = "cornsilk4", Deltaproteobacteria = "steelblue4", Elusimicrobia = "yellow3", Epsilonproteobacteria = "steelblue4", Fibrobacteres = "darkred", Firmicutes = "blue4", FGL7S = "palevioletred1", Fusobacteria = "slateblue1", Gammaproteobacteria = "steelblue4", Gemmatimonadetes="black", GOUTA4 = "plum1", "Hyd24-12" = "sienna2", JTB23 = "seashell2", Nitrospirae = "yellow1", "NPL-UPA2"="#652926", OC31 = "mediumpurple4", Planctomycetes = "mediumorchid3", Proteobacteria = "steelblue4", "SHA-109" = "lightsalmon3", SM2F11 = "lightskyblue2", SPOTSOCT00m83 = "orangered", Spirochaetae = "gold3", Tenericutes="pink", Thermotogae = "chocolate1", TA06 = "lightslateblue",TA18 = "rosybrown3", TM6 = "olivedrab", unclassified = "grey", Verrucomicrobia = "purple4", "WCHB1-60" = "palegreen", Other = "darkgrey", Cytophagia = "darkred", Sphingobacteria = "darkred",Flavobacteria = "darkred")
 ```
 
-### Import Data
-```{r Import_Data, include=FALSE}
+### Figure 1, panel C: Muskegon Lake buoy data   
+```{r load buoy data}
+#load buoy data downloaded from http://www.gvsu.edu/wri/buoy/data-generate.htm?concentration=1&date=4/23/13-11/3/13&time=0:00,12:00&x=date&y=clcon001,odo001,tp001,clcon002,tp004,clcon003,odo003,tp005
+buoydata <- read.table("Input_data/wri_buoy_data.tsv",sep="\t",header=T,row.names=1,as.is=T)
+
+#modify into dataframe with date in first column then value of parameter in second, and third colum states which parameter was measured
+#also, convert fahrenheit to celcius for temps at 2m (T2), 7m (T7) and 8m (T8)
+buoydata$Date <- row.names(buoydata)
+
+T2<-data.frame(buoydata$Date,buoydata$T2)
+T2$parameter<-"Temp 2m"
+colnames(T2)<-c("date","value","parameter")
+T2$value<-(T2$value-32)/9*5
+
+T7<-data.frame(buoydata$Date,buoydata$T7)
+T7$parameter<-"Temp 7m"
+colnames(T7)<-c("date","value","parameter")
+T7$value<-(T7$value-32)/9*5
+
+T9<-data.frame(buoydata$Date,buoydata$T9)
+T9$parameter<-"Temp 9m"
+colnames(T9)<-c("date","value","parameter")
+T9$value<-(T9$value-32)/9*5
+
+C2<-data.frame(buoydata$Date,buoydata$CHL2)
+C2$parameter<-"Chla 2m"
+colnames(C2)<-c("date","value","parameter")
+
+C5<-data.frame(buoydata$Date,buoydata$CHL5)
+C5$parameter<-"Chla 5m"
+colnames(C5)<-c("date","value","parameter")
+
+DO2<-data.frame(buoydata$Date,buoydata$DO2)
+DO2$parameter<-"DO 2m"
+colnames(DO2)<-c("date","value","parameter")
+
+DO8<-data.frame(buoydata$Date,buoydata$DO8)
+DO8$parameter<-"DO 8m"
+colnames(DO8)<-c("date","value","parameter")
+
+buoy.df<-rbind(T2,T7,T9,C2,C5,DO2,DO8)
+buoy.T<-rbind(T2,T7,T9)
+buoy.C<-rbind(C2,C5)
+buoy.D<-rbind(DO2,DO8)
+
+```
+
+```{r plot data}
+buoy_plot_T <- ggplot(buoy.T,aes_string(x = "date",y = "value",group = "parameter",color = "parameter")) +
+  scale_x_discrete(breaks = c("05/15/2013","07/15/2013", "08/15/2013", "09/23/2013", "11/02/2013"),labels = c("May 15", "Jul 15", "Aug 15", "Sep 23", "Nov 02"),drop = FALSE) +
+  geom_line(size = 0.4) + #geom_point(size = 0.8) +
+  ggtitle("") + xlab("") +
+  ylab("°C") + 
+  scale_color_manual(name = "Temp", values = c("Temp 2m" = "gray0", "Temp 7m" = "gray30", "Temp 9m" = "gray60"), breaks = c("Temp 2m", "Temp 7m" , "Temp 9m" ), labels = c("2 m","7 m","9 m")) +
+  theme(plot.title = element_text(face="bold", size=7),  #Set the plot title
+                                 strip.text.x = element_blank(),  #Set the facet titles on x-axis 
+                                 strip.text.y = element_blank(),  #Set the facet titles on x-axis 
+                                 strip.background = element_blank(),  #Set the facet background to no background
+                                 axis.title.x = element_text(face="bold", size=7),  #Set the x-axis title
+                                 axis.title.y = element_text(face="bold", size=7),  #Set the y-axis title
+                                 axis.text.x = element_text(angle=30, colour = "black", 
+                                                            vjust=1, hjust = 0.5, size=0),  #Set the x-axis labels
+                                 axis.text.y = element_text(colour = "black", size=7),  #Set the y-axis labels
+                                 legend.title = element_text(size = 8, face="bold"),  #Set the legend title 
+                                 legend.text = element_text(size = 8),  #Set the legend text
+                                 legend.position="right", #Default the legend position to the right
+                                 plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")); buoy_plot_T
+
+buoy_plot_C <- ggplot(buoy.C,aes_string(x = "date",y = "value",group = "parameter",color = "parameter")) +
+  scale_x_discrete(breaks = c("05/15/2013","07/15/2013", "08/15/2013", "09/23/2013", "11/02/2013"),labels = c("May 15", "Jul 15", "Aug 15", "Sep 23", "Nov 02"),drop = FALSE) +
+  geom_line(size = 0.4) + #geom_point(size = 0.8) +
+  ggtitle("") + xlab("") +
+  ylab("ug/L") + 
+  scale_color_manual(name = "Chla", values = c("Chla 2m" = "darkgreen", "Chla 5m" = "darkslategrey"), breaks = c("Chla 2m" , "Chla 5m"), labels = c("2 m","5 m")) +
+  theme(plot.title = element_text(face="bold", size=7),  #Set the plot title
+                                 strip.text.x = element_blank(),  #Set the facet titles on x-axis 
+                                 strip.text.y = element_blank(),  #Set the facet titles on x-axis 
+                                 strip.background = element_blank(),  #Set the facet background to no background
+                                 axis.title.x = element_text(face="bold", size=7),  #Set the x-axis title
+                                 axis.title.y = element_text(face="bold", size=7),  #Set the y-axis title
+                                 axis.text.x = element_text(angle=30, colour = "black", 
+                                                            vjust=1, hjust = 0.5, size=0),  #Set the x-axis labels
+                                 axis.text.y = element_text(colour = "black", size=7),  #Set the y-axis labels
+                                 legend.title = element_text(size = 8, face="bold"),  #Set the legend title 
+                                 legend.text = element_text(size = 8),  #Set the legend text
+                                 legend.position="right", #Default the legend position to the right
+                                 plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")); buoy_plot_C
+
+buoy_plot_D <- ggplot(buoy.D,aes_string(x = "date",y = "value",group = "parameter",color = "parameter")) +
+  scale_x_discrete(breaks = c("05/15/2013","07/15/2013", "08/15/2013", "09/23/2013", "11/02/2013"),labels = c("May 15", "Jul 15", "Aug 15", "Sep 23", "Nov 02"),drop = FALSE) +
+  geom_line(size = 0.4) + #geom_point(size = 0.8) +
+  ggtitle("") + xlab("") +
+  ylab("mg/L") + 
+  scale_color_manual(name = "DO", values = c("DO 2m" = "darkgoldenrod4", "DO 8m" = "darkgoldenrod3"), breaks = c("DO 2m", "DO 8m" ), labels = c("2 m","8 m")) +
+  theme(plot.title = element_text(face="bold", size=7),  #Set the plot title
+                                 strip.text.x = element_blank(),  #Set the facet titles on x-axis 
+                                 strip.text.y = element_blank(),  #Set the facet titles on x-axis 
+                                 strip.background = element_blank(),  #Set the facet background to no background
+                                 axis.title.x = element_text(face="bold", size=7),  #Set the x-axis title
+                                 axis.title.y = element_text(face="bold", size=7),  #Set the y-axis title
+                                 axis.text.x = element_text(angle=30, colour = "black", 
+                                                            vjust=1, hjust = 0.5, size=7),  #Set the x-axis labels
+                                 axis.text.y = element_text(colour = "black", size=7),  #Set the y-axis labels
+                                 legend.title = element_text(size = 8, face="bold"),  #Set the legend title 
+                                 legend.text = element_text(size = 8),  #Set the legend text
+                                 legend.position="right", #Default the legend position to the right
+                                 plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")); buoy_plot_D        
+```
+
+```{r final figure}
+pdf(file="Figures/Rplot_buoy.pdf", width= 2.5, height=3, pointsize= 8, colormodel="cmyk", useDingbats = FALSE)
+grid.arrange(buoy_plot_T,buoy_plot_C,buoy_plot_D,ncol=1)
+dev.off()
+```
+
+### Import Sequence Data
+```{r Import sequence Data, include=FALSE}
 ###input data were obtained fromn the jgi output produced by their iTagger pipeline, which performs the following steps
 #(1) CONTAM FILTER: Filter one or more contaminants using Duk (e.g. PhiX control, sequencing library adapter dimers, human contaminants, etc.).  For paired reads, the entire pair is filtered if one end-read has a high-scoring hit.
 #(2) PRIMER TRIM: PCR primers (of the conserved region) are trimmed away.  For paired-end reads, both forward and reverse primers must be found, otherwise the entire pair is filtered.
@@ -196,7 +313,7 @@ t <- tax_table(as.matrix(phy))
 tax_table(physeq_dupmerge) <- t
 ```
 
-##Figure 1: alpha diversity
+##Figure 2: alpha diversity
 ```{r alpha diversity metrics calculation}
 # For alpha diversity we will RAREFY our phyloseq object.  Our raw-data phyloseq object was:
 physeq_dupmerge  # Raw Merged Samples
@@ -237,6 +354,15 @@ colnames(rich_stats) = c("samples","mean")
 rich_stats$Test <- "Observed Richness"
 rich_stats$Duplicates <- as.character(rich_stats$samples)
 rich_stats <- merge(rich_stats,data.frame(duplicate_metadata),by="Duplicates")
+for(i in 1:length(rich_stats$Season)){
+  rich_stats$Depth_Seas[i]<-paste(as.character(rich_stats$Depth_C[i]),
+                                  as.character(rich_stats$Season[i]))}
+for(i in 1:length(rich_stats$Season)){
+  rich_stats$Stat_Seas[i]<-paste(as.character(rich_stats$Station[i]),
+                                  as.character(rich_stats$Season[i]))}
+for(i in 1:length(rich_stats$Season)){
+  rich_stats$Frac_Seas[i]<-paste(as.character(rich_stats$Fraction[i]),
+                                  as.character(rich_stats$Season[i]))}
 
 # Create a new matrix to hold the means and standard deviations of the evenness estimates
 even_stats = matrix(nrow = nrow(evenness), ncol = 1)
@@ -257,10 +383,21 @@ simps_even$mean <-  even_stats$mean/rich_stats$mean
 simps_even$Test <- "Simpson's Evenness"
 simps_even$Duplicates <- as.character(simps_even$samples)
 simps_even <- merge(simps_even,data.frame(duplicate_metadata),by="Duplicates")
+for(i in 1:length(simps_even$Season)){
+  simps_even$Depth_Seas[i]<-paste(as.character(simps_even$Depth_C[i]),
+                                  as.character(simps_even$Season[i]))}
+for(i in 1:length(simps_even$Season)){
+  simps_even$Stat_Seas[i]<-paste(as.character(simps_even$Station[i]),
+                                  as.character(simps_even$Season[i]))}
+for(i in 1:length(simps_even$Season)){
+  simps_even$Frac_Seas[i]<-paste(as.character(simps_even$Fraction[i]),
+                                  as.character(simps_even$Season[i]))}
 ```
 
 ```{r richness plots}
 ###RICHNESS PLOTS
+#adjust default color of boxplot outliers so that it matches boxplot color
+update_geom_defaults("point", list(colour = NULL))
 ## 1. richness differences based on Season
 rich_Season_KW <- kruskal.test(rich_stats$mean ~ as.factor(rich_stats$Season)) 
 print(rich_Season_KW)  # show Kruskal Wallis result
@@ -295,35 +432,36 @@ rich_Season_KW_try$Season <- factor(rich_Season_KW_try$Season,levels=c("Sp","Su"
 rich_Season_KW_try$Station <- factor(rich_Season_KW_try$Station,levels=c("MLB","MM15","MM110"))
 rich_Season_KW_try$Depth_C <- factor(rich_Season_KW_try$Depth_C,levels=c("S","M","D"))
 
-pdf(file="Figures/Rplot_Richness_Season_boxplot.pdf", width= 5, height=5, pointsize= 14)
+pdf(file="Figures/Rplot_Richness_Season_boxplot.pdf", width= 5, height=5, pointsize= 8)
 rich_Season_boxplot <- ggplot(rich_Season_KW_try, aes(x = Season, y = mean))  +
-  geom_boxplot(outlier.size = 0)  + ggtitle(alpha_title) +
-  geom_point(aes(color=Season,shape = Station,size = Fraction,fill=Depth_C), position = position_dodge(0.8)) +
-  geom_text(data = rich_Season_KW_sigs, aes(label = siglabel, x = Season, y = .95), size = 4) +
+  geom_boxplot(aes(color=Season),outlier.size = 0)  + ggtitle("Season") +
+  geom_point(aes(color=Season,shape = Station,size = Fraction,fill=Depth_Seas), position = position_dodge(0.8)) +
+  geom_text(data = rich_Season_KW_sigs, aes(label = siglabel, x = Season, y = .95), size = 2) +
   scale_color_manual(name = "season", values = c("Sp" = "darkgreen", "Su" = "red", "Fa" = "mediumblue"),
                      labels = c("Spring",  "Summer", "Fall")) +
   scale_shape_manual(name = "station", values = c("MLB" = 21, "MM15" = 22, "MM110" = 24),
-                     labels = c("Estuary", "Nearshore",  "Offshore")) + 
+                     labels = c("Estuary", "Near",  "Off")) + 
   scale_size_manual(name = "fraction", breaks = c("B","E"), 
                      labels = c("Free","Particle"),
-                     values = c("B" = 2, "E" = 4)) +
-  scale_fill_manual(name = "depth",  values = c("D" = "black", "M" = "grey", "S" = "white"), 
-                     labels = c("Deep","Chla max","Surface")) +
+                     values = c("B" = 1, "E" = 2)) +
+    scale_fill_manual(name = "depth", breaks = c("D Sp", "D Su", "D Fa", "M Su", "S Sp", "S Su", "S Fa"), 
+                     labels = c("Deep","Deep","Deep", "Chla max", "Surface", "Surface", "Surface"),
+                     values = c("D Fa" = "mediumblue", "D Sp" = "darkgreen", "D Su" = "red", "M Su" = "orange", "S Sp" = "white", "S Su" = "white", "S Fa" = "white")) +
   scale_x_discrete(breaks=c("Sp", "Su", "Fa"),
                    labels=c("Spring\n(n=14)","Summer\n(n=17)", "Fall\n(n=16)")) + 
-  xlab("Season)") + ylab("Observed Richness") + theme_bw() + 
-  theme(plot.title = element_text(face="bold", size = 12),  #Set the plot title
+  xlab("") + ylab("Observed Richness") + theme_bw() + 
+  theme(plot.title = element_text(face="bold", size=7),  #Set the plot title
                                  strip.text.x = element_blank(),  #Set the facet titles on x-axis 
                                  strip.text.y = element_blank(),  #Set the facet titles on x-axis 
                                  strip.background = element_blank(),  #Set the facet background to no background
-                                 axis.title.x = element_text(face="bold", size=10),  #Set the x-axis title
-                                 axis.title.y = element_text(face="bold", size=10),  #Set the y-axis title
+                                 axis.title.x = element_text(face="bold", size=7),  #Set the x-axis title
+                                 axis.title.y = element_text(face="bold", size=7),  #Set the y-axis title
                                  axis.text.x = element_text(angle=0, colour = "black", 
-                                                            vjust=1, hjust = 1, size=10),  #Set the x-axis labels
-                                 axis.text.y = element_text(colour = "black", size=10),  #Set the y-axis labels
+                                                            vjust=1, hjust = 0.5, size=7),  #Set the x-axis labels
+                                 axis.text.y = element_text(colour = "black", size=7),  #Set the y-axis labels
                                  legend.title = element_text(size = 8, face="bold"),  #Set the legend title 
                                  legend.text = element_text(size = 8),  #Set the legend text
-                                 legend.position="right", #Default the legend position to the right
+                                 legend.position="none", #Default the legend position to the right
                                  plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")); rich_Season_boxplot #top, right, bottom, left
 dev.off()
 
@@ -361,34 +499,35 @@ rich_Fraction_KW_try$Season <- factor(rich_Fraction_KW_try$Season,levels=c("Sp",
 rich_Fraction_KW_try$Station <- factor(rich_Fraction_KW_try$Station,levels=c("MLB","MM15","MM110"))
 rich_Fraction_KW_try$Depth_C <- factor(rich_Fraction_KW_try$Depth_C,levels=c("S","M","D"))
 
-pdf(file="Figures/Rplot_Richness_Fraction_boxplot.pdf", width= 5, height=5, pointsize= 14)
+pdf(file="Figures/Rplot_Richness_Fraction_boxplot.pdf", width= 5, height=5, pointsize= 8)
 rich_Fraction_boxplot <- ggplot(rich_Fraction_KW_try, aes(x = Fraction, y = mean))  +
-  geom_boxplot(outlier.size = 0)  + ggtitle(alpha_title) +
-  geom_point(aes(color=Season,shape = Station,size = Fraction,fill=Depth_C), position = position_dodge(0.8)) +
-  geom_text(data = rich_Fraction_KW_sigs, aes(label = siglabel, x = Fraction, y = .95), size = 4) +
+  geom_boxplot(aes(color=Season),outlier.size = 1)  + ggtitle("Fraction") +
+  #geom_point(aes(color=Season,shape = Station,size = Fraction,fill=Depth_Seas), position = position_dodge(0.8)) +
+  geom_text(data = rich_Fraction_KW_sigs, aes(label = siglabel, x = Fraction, y = .95), size = 2) +
   scale_color_manual(name = "season", breaks = c("Sp","Su","Fa"),values = c("Sp" = "darkgreen", "Su" = "red", "Fa" = "mediumblue"),labels = c("Spring",  "Summer", "Fall")) +
   scale_shape_manual(name = "station", values = c("MLB" = 21, "MM15" = 22, "MM110" = 24),
-                      labels = c("Estuary", "Nearshore",  "Offshore")) + 
+                      labels = c("Estuary", "Near",  "Off")) + 
   scale_size_manual(name = "fraction", breaks = c("B","E"), 
                      labels = c("Free","Particle"),
-                     values = c("B" = 2, "E" = 4)) +
-  scale_fill_manual(name = "depth",  values = c("D" = "black", "M" = "grey", "S" = "white"), 
-                     labels = c("Deep","Chla max","Surface")) +
+                     values = c("B" = 1, "E" = 2)) +
+  scale_fill_manual(name = "depth", breaks = c("D Sp", "D Su", "D Fa", "M Su", "S Sp", "S Su", "S Fa"), 
+                     labels = c("Deep","Deep","Deep", "Chla max", "Surface", "Surface", "Surface"),
+                     values = c("D Fa" = "mediumblue", "D Sp" = "darkgreen", "D Su" = "red", "M Su" = "orange", "S Sp" = "white", "S Su" = "white", "S Fa" = "white")) +
  scale_x_discrete(breaks=c("B", "E"),
-                   labels=c("Free-living\n(n=24)","Particle-associated\n(n=23)")) + 
-   xlab("Fraction)") + ylab("Observed Richness") + theme_bw() + 
-  theme(plot.title = element_text(face="bold", size = 12),  #Set the plot title
+                   labels=c("FL\n(n=24)","PA\n(n=23)")) + 
+   xlab("") + ylab("") + theme_bw() + 
+  theme(plot.title = element_text(face="bold", size=7),  #Set the plot title
                                  strip.text.x = element_blank(),  #Set the facet titles on x-axis 
                                  strip.text.y = element_blank(),  #Set the facet titles on x-axis 
                                  strip.background = element_blank(),  #Set the facet background to no background
-                                 axis.title.x = element_text(face="bold", size=10),  #Set the x-axis title
-                                 axis.title.y = element_text(face="bold", size=10),  #Set the y-axis title
+                                 axis.title.x = element_text(face="bold", size=7),  #Set the x-axis title
+                                 axis.title.y = element_text(face="bold", size=7),  #Set the y-axis title
                                  axis.text.x = element_text(angle=0, colour = "black", 
-                                                            vjust=1, hjust = 1, size=10),  #Set the x-axis labels
-                                 axis.text.y = element_text(colour = "black", size=10),  #Set the y-axis labels
+                                                            vjust=1, hjust = 0.5, size=7),  #Set the x-axis labels
+                                 axis.text.y = element_text(colour = "black", size=7),  #Set the y-axis labels
                                  legend.title = element_text(size = 8, face="bold"),  #Set the legend title 
                                  legend.text = element_text(size = 8),  #Set the legend text
-                                 legend.position="right", #Default the legend position to the right
+                                 legend.position="none", #Default the legend position to the right
                                  plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")); rich_Fraction_boxplot #top, right, bottom, left
 dev.off()
 
@@ -427,34 +566,35 @@ rich_Station_KW_try$Season <- factor(rich_Station_KW_try$Season,levels=c("Sp","S
 rich_Station_KW_try$Station <- factor(rich_Station_KW_try$Station,levels=c("MLB","MM15","MM110"))
 rich_Station_KW_try$Depth_C <- factor(rich_Station_KW_try$Depth_C,levels=c("S","M","D"))
 
-pdf(file="Figures/Rplot_Richness_Station_boxplot.pdf", width= 5, height=5, pointsize= 14)
+pdf(file="Figures/Rplot_Richness_Station_boxplot.pdf", width= 5, height=5, pointsize= 8)
 rich_Station_boxplot <- ggplot(rich_Station_KW_try, aes(x = Station, y = mean))  +
-  geom_boxplot(outlier.size = 0)  + ggtitle(alpha_title) +
-  geom_point(aes(color=Season,shape = Station,size = Fraction,fill=Depth_C), position = position_dodge(0.8)) +
-  geom_text(data = rich_Station_KW_sigs, aes(label = siglabel, x = Station, y = .95), size = 4) +
+  geom_boxplot(aes(color=Season),outlier.size = 1)  + ggtitle("Station") +
+  #geom_point(aes(color=Season,shape = Station,size = Fraction,fill=Depth_Seas), position = position_dodge(0.8)) +
+  geom_text(data = rich_Station_KW_sigs, aes(label = siglabel, x = Station, y = .95), size = 2) +
   scale_color_manual(name = "season", breaks = c("Sp","Su","Fa"),values = c("Sp" = "darkgreen", "Su" = "red", "Fa" = "mediumblue"),labels = c("Spring",  "Summer", "Fall")) +
   scale_shape_manual(name = "station", values = c("MLB" = 21, "MM15" = 22, "MM110" = 24),
-                      labels = c("Estuary", "Nearshore",  "Offshore")) + 
+                      labels = c("Estuary", "Near",  "Off")) + 
   scale_size_manual(name = "fraction", breaks = c("B","E"), 
                      labels = c("Free","Particle"),
-                     values = c("B" = 2, "E" = 4)) +
-  scale_fill_manual(name = "depth",  values = c("D" = "black", "M" = "grey", "S" = "white"), 
-                     labels = c("Deep","Chla max","Surface")) +
+                     values = c("B" = 1, "E" = 2)) +
+  scale_fill_manual(name = "depth", breaks = c("D Sp", "D Su", "D Fa", "M Su", "S Sp", "S Su", "S Fa"), 
+                     labels = c("Deep","Deep","Deep", "Chla max", "Surface", "Surface", "Surface"),
+                     values = c("D Fa" = "mediumblue", "D Sp" = "darkgreen", "D Su" = "red", "M Su" = "orange", "S Sp" = "white", "S Su" = "white", "S Fa" = "white")) +
   scale_x_discrete(breaks=c("MLB", "MM15", "MM110"),
-                   labels=c("Estuary\n(n=10)","Nearshore\n(n=18)", "Offshore\n(n=19)")) + 
-  xlab("Station)") + ylab("Observed Richness") + theme_bw() + 
-  theme(plot.title = element_text(face="bold", size = 12),  #Set the plot title
+                   labels=c("Estuary\n(n=10)","Near\n(n=18)", "Off\n(n=19)")) + 
+  xlab("") + ylab("") + theme_bw() + 
+  theme(plot.title = element_text(face="bold", size=7),  #Set the plot title
                                  strip.text.x = element_blank(),  #Set the facet titles on x-axis 
                                  strip.text.y = element_blank(),  #Set the facet titles on x-axis 
                                  strip.background = element_blank(),  #Set the facet background to no background
-                                 axis.title.x = element_text(face="bold", size=10),  #Set the x-axis title
-                                 axis.title.y = element_text(face="bold", size=10),  #Set the y-axis title
+                                 axis.title.x = element_text(face="bold", size=7),  #Set the x-axis title
+                                 axis.title.y = element_text(face="bold", size=7),  #Set the y-axis title
                                  axis.text.x = element_text(angle=0, colour = "black", 
-                                                            vjust=1, hjust = 1, size=10),  #Set the x-axis labels
-                                 axis.text.y = element_text(colour = "black", size=10),  #Set the y-axis labels
+                                                            vjust=1, hjust = 0.5, size=7),  #Set the x-axis labels
+                                 axis.text.y = element_text(colour = "black", size=7),  #Set the y-axis labels
                                  legend.title = element_text(size = 8, face="bold"),  #Set the legend title 
                                  legend.text = element_text(size = 8),  #Set the legend text
-                                 legend.position="right", #Default the legend position to the right
+                                 legend.position="none", #Default the legend position to the right
                                  plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")); rich_Station_boxplot #top, right, bottom, left
 dev.off()
 
@@ -495,38 +635,292 @@ rich_Depth_C_KW_try$Season <- factor(rich_Depth_C_KW_try$Season,levels=c("Sp","S
 rich_Depth_C_KW_try$Station <- factor(rich_Depth_C_KW_try$Station,levels=c("MLB","MM15","MM110"))
 rich_Depth_C_KW_try$Depth_C <- factor(rich_Depth_C_KW_try$Depth_C,levels=c("S","M","D"))
 
-pdf(file="Figures/Rplot_Richness_Depth_C_boxplot.pdf", width= 5, height=5, pointsize= 14)
+pdf(file="Figures/Rplot_Richness_Depth_C_boxplot.pdf", width= 5, height=5, pointsize= 8)
 rich_Depth_C_boxplot <- ggplot(rich_Depth_C_KW_try, aes(x = Depth_C, y = mean))  +
-  geom_boxplot(outlier.size = 0)  + ggtitle(alpha_title) +
-  geom_point(aes(color=Season,shape = Station,size = Fraction,fill=Depth_C), position = position_dodge(0.8)) +
-  geom_text(data = rich_Depth_C_KW_sigs, aes(label = siglabel, x = Depth_C, y = .95), size = 4) +
+  geom_boxplot(aes(color=Season),outlier.size = 1)  + ggtitle("Depth") +
+  #geom_point(aes(color=Season,shape = Station,size = Fraction,fill=Depth_Seas), position = position_dodge(0.8)) +
+  geom_text(data = rich_Depth_C_KW_sigs, aes(label = siglabel, x = Depth_C, y = .95), size = 2) +
   scale_color_manual(name = "season", breaks = c("Sp","Su","Fa"),values = c("Sp" = "darkgreen", "Su" = "red", "Fa" = "mediumblue"),labels = c("Spring",  "Summer", "Fall")) +
   scale_shape_manual(name = "station", values = c("MLB" = 21, "MM15" = 22, "MM110" = 24),
-                      labels = c("Estuary", "Nearshore",  "Offshore")) + 
+                      labels = c("Estuary", "Near",  "Off")) + 
   scale_size_manual(name = "fraction", breaks = c("B","E"), 
                      labels = c("Free","Particle"),
-                     values = c("B" = 2, "E" = 4)) +
-  scale_fill_manual(name = "depth",  values = c("D" = "black", "M" = "grey", "S" = "white"), 
-                     labels = c("Deep","Chla max","Surface")) +
+                     values = c("B" = 1, "E" = 2)) +
+  scale_fill_manual(name = "depth", breaks = c("D Sp", "D Su", "D Fa", "M Su", "S Sp", "S Su", "S Fa"), 
+                     labels = c("Deep","Deep","Deep", "Chla max", "Surface", "Surface", "Surface"),
+                     values = c("D Fa" = "mediumblue", "D Sp" = "darkgreen", "D Su" = "red", "M Su" = "orange", "S Sp" = "white", "S Su" = "white", "S Fa" = "white")) +
   scale_x_discrete(breaks=c("S", "M", "D"),
                    labels=c("Surface\n(n=30)","Chla max\n(n=2)","Deep\n(n=15)")) + 
-  xlab("Depth_C)") + ylab("Observed Richness") + theme_bw() + 
-  theme(plot.title = element_text(face="bold", size = 12),  #Set the plot title
+  xlab("") + ylab("") + theme_bw() + 
+  theme(plot.title = element_text(face="bold", size=7),  #Set the plot title
                                  strip.text.x = element_blank(),  #Set the facet titles on x-axis 
                                  strip.text.y = element_blank(),  #Set the facet titles on x-axis 
                                  strip.background = element_blank(),  #Set the facet background to no background
-                                 axis.title.x = element_text(face="bold", size=10),  #Set the x-axis title
-                                 axis.title.y = element_text(face="bold", size=10),  #Set the y-axis title
+                                 axis.title.x = element_text(face="bold", size=7),  #Set the x-axis title
+                                 axis.title.y = element_text(face="bold", size=7),  #Set the y-axis title
                                  axis.text.x = element_text(angle=0, colour = "black", 
-                                                            vjust=1, hjust = 1, size=10),  #Set the x-axis labels
-                                 axis.text.y = element_text(colour = "black", size=10),  #Set the y-axis labels
+                                                            vjust=1, hjust = 0.5, size=7),  #Set the x-axis labels
+                                 axis.text.y = element_text(colour = "black", size=7),  #Set the y-axis labels
                                  legend.title = element_text(size = 8, face="bold"),  #Set the legend title 
                                  legend.text = element_text(size = 8),  #Set the legend text
-                                 legend.position="right", #Default the legend position to the right
+                                 legend.position="none", #Default the legend position to the right
                                  plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")); rich_Depth_C_boxplot #top, right, bottom, left
 dev.off()
 
 ```
+
+```{r richness plot combination of factors to create multicomp letters based on Kruskall Wallis test between sub boxplots data}
+###RICHNESS PLOTS
+## 1. richness differences based on Season and Station combination
+rich_Stat_Seas_KW <- kruskal.test(rich_stats$mean ~ as.factor(rich_stats$Stat_Seas)) 
+print(rich_Stat_Seas_KW)  # show Kruskal Wallis result
+
+# Which samples are significantly different from each other?  
+rich_Stat_Seas_KW_MC <- kruskalmc(rich_stats$mean ~ as.factor(rich_stats$Stat_Seas))  ## Defaults to P < 0.05
+print(rich_Stat_Seas_KW_MC)
+
+# Test to find the letters to represent significance in a plot
+rich_Stat_Seas_KW_test <- rich_Stat_Seas_KW_MC$dif.com$difference # select logical vector
+names(rich_Stat_Seas_KW_test) <- row.names(rich_Stat_Seas_KW_MC$dif.com) # add comparison names
+
+# create a list with "homogenous groups" coded by letter
+rich_Stat_Seas_KW_letters <- multcompLetters(rich_Stat_Seas_KW_test, compare="<", threshold=0.05, 
+                                Letters=c(letters, LETTERS, "."), reversed = FALSE)
+
+#  Extract the values from the multcompLetters object
+rich_Stat_Seas_KW_sigs_dataframe <-  data.frame(as.vector(names(rich_Stat_Seas_KW_letters$Letters)), as.vector(rich_Stat_Seas_KW_letters$Letters))
+colnames(rich_Stat_Seas_KW_sigs_dataframe) <- c("Stat_Seas", "siglabel")
+rich_Stat_Seas_KW_try <- merge(rich_stats, rich_Stat_Seas_KW_sigs_dataframe, by = "Stat_Seas")
+
+rich_Stat_Seas_KW_try$Stat_Seas <-factor(rich_Stat_Seas_KW_try$Stat_Seas,levels=c( "MLB Sp","MM15 Sp","MM110 Sp","MLB Su","MM15 Su","MM110 Su","MLB Fa","MM15 Fa","MM110 Fa"))
+
+rich_Stat_Seas_KW_sigs <- rich_Stat_Seas_KW_try %>%
+  select(Stat_Seas, Stat_Seas, siglabel) %>%
+  distinct()
+
+# finally, the plot, after first setting the order of the factor levels
+alpha_title <- paste("Richness when rarefied at",min(sample_sums(physeq_dupmerge)),"reads")
+rich_Stat_Seas_KW_try$Fraction <- factor(rich_Stat_Seas_KW_try$Fraction,levels=c("B","E"))
+rich_Stat_Seas_KW_try$Season <- factor(rich_Stat_Seas_KW_try$Season,levels=c("Sp","Su","Fa"))
+rich_Stat_Seas_KW_try$Station <- factor(rich_Stat_Seas_KW_try$Station,levels=c("MLB","MM15","MM110"))
+rich_Stat_Seas_KW_try$Depth_C <- factor(rich_Stat_Seas_KW_try$Depth_C,levels=c("S","M","D"))
+
+pdf(file="Figures/Rplot_Richness_Seas_Stat_boxplot.pdf", width= 5, height=5, pointsize= 8)
+rich_Seas_Stat_boxplot <- ggplot(rich_Stat_Seas_KW_try, aes(x = Stat_Seas, y = mean))  +
+  geom_boxplot(outlier.size = 0)  + ggtitle("Season & Station") +
+  geom_point(aes(color=Season,shape = Station,size = Fraction,fill=Depth_Seas), position = position_dodge(0.8)) +
+  geom_text(data = rich_Stat_Seas_KW_sigs, aes(label = siglabel, x = Stat_Seas, y = .95), size = 2) +
+  scale_color_manual(name = "season", values = c("Sp" = "darkgreen", "Su" = "red", "Fa" = "mediumblue"),
+                     labels = c("Spring",  "Summer", "Fall")) +
+  scale_shape_manual(name = "station", values = c("MLB" = 21, "MM15" = 22, "MM110" = 24),
+                     labels = c("Estuary", "Near",  "Off")) + 
+  scale_size_manual(name = "fraction", breaks = c("B","E"), 
+                     labels = c("Free","Particle"),
+                     values = c("B" = 1, "E" = 2)) +
+    scale_fill_manual(name = "depth", breaks = c("D Sp", "D Su", "D Fa", "M Su", "S Sp", "S Su", "S Fa"), 
+                     labels = c("Deep","Deep","Deep", "Chla max", "Surface", "Surface", "Surface"),
+                     values = c("D Fa" = "mediumblue", "D Sp" = "darkgreen", "D Su" = "red", "M Su" = "orange", "S Sp" = "white", "S Su" = "white", "S Fa" = "white")) +
+  scale_x_discrete(breaks=c("MLB Sp", "MM15 Sp", "MM110 Sp","MLB Su", "MM15 Su", "MM110 Su","MLB Fa", "MM15 Fa", "MM110 Fa"),
+                   labels=c("MLB Sp", "MM15 Sp", "MM110 Sp","MLB Su", "MM15 Su", "MM110 Su","MLB Fa", "MM15 Fa", "MM110 Fa")) + 
+  xlab("") + ylab("Observed Richness") + theme_bw() + 
+  theme(plot.title = element_text(face="bold", size=7),  #Set the plot title
+                                 strip.text.x = element_blank(),  #Set the facet titles on x-axis 
+                                 strip.text.y = element_blank(),  #Set the facet titles on x-axis 
+                                 strip.background = element_blank(),  #Set the facet background to no background
+                                 axis.title.x = element_text(face="bold", size=7),  #Set the x-axis title
+                                 axis.title.y = element_text(face="bold", size=7),  #Set the y-axis title
+                                 axis.text.x = element_text(angle=0, colour = "black", 
+                                                            vjust=1, hjust = 0.5, size=7),  #Set the x-axis labels
+                                 axis.text.y = element_text(colour = "black", size=7),  #Set the y-axis labels
+                                 legend.title = element_text(size = 8, face="bold"),  #Set the legend title 
+                                 legend.text = element_text(size = 8),  #Set the legend text
+                                 legend.position="none", #Default the legend position to the right
+                                 plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")); rich_Seas_Stat_boxplot #top, right, bottom, left
+dev.off()
+
+## 2. richness differences based on Fraction and Season
+rich_Frac_Seas_KW <- kruskal.test(rich_stats$mean ~ as.factor(rich_stats$Frac_Seas)) 
+print(rich_Frac_Seas_KW)  # show Kruskal Wallis result
+
+# Which samples are significantly different from each other?  
+rich_Frac_Seas_KW_MC <- kruskalmc(rich_stats$mean ~ as.factor(rich_stats$Frac_Seas))  ## Defaults to P < 0.05
+print(rich_Frac_Seas_KW_MC)
+
+# Test to find the letters to represent significance in a plot
+rich_Frac_Seas_KW_test <- rich_Frac_Seas_KW_MC$dif.com$difference # select logical vector
+names(rich_Frac_Seas_KW_test) <- row.names(rich_Frac_Seas_KW_MC$dif.com) # add comparison names
+
+# create a list with "homogenous groups" coded by letter
+rich_Frac_Seas_KW_letters <- multcompLetters(rich_Frac_Seas_KW_test, compare="<", threshold=0.05, 
+                                Letters=c(letters, LETTERS, "."), reversed = FALSE)
+
+#  Extract the values from the multcompLetters object
+rich_Frac_Seas_KW_sigs_dataframe <-  data.frame(as.vector(names(rich_Frac_Seas_KW_letters$Letters)), as.vector(rich_Frac_Seas_KW_letters$Letters))
+colnames(rich_Frac_Seas_KW_sigs_dataframe) <- c("Frac_Seas", "siglabel")
+rich_Frac_Seas_KW_try <- merge(rich_stats, rich_Frac_Seas_KW_sigs_dataframe, by = "Frac_Seas")
+
+rich_Frac_Seas_KW_try$Frac_Seas <-factor(rich_Frac_Seas_KW_try$Frac_Seas,levels=c( "B Sp", "B Su", "B Fa", "E Sp", "E Su", "E Fa"))
+
+rich_Frac_Seas_KW_sigs <- rich_Frac_Seas_KW_try %>%
+  select(Frac_Seas, Frac_Seas, siglabel) %>%
+  distinct()
+
+# finally, the plot
+alpha_title <- paste("Richness when rarefied at",min(sample_sums(physeq_dupmerge)),"reads")
+rich_Frac_Seas_KW_try$Fraction <- factor(rich_Frac_Seas_KW_try$Fraction,levels=c("B","E"))
+rich_Frac_Seas_KW_try$Season <- factor(rich_Frac_Seas_KW_try$Season,levels=c("Sp","Su","Fa"))
+rich_Frac_Seas_KW_try$Station <- factor(rich_Frac_Seas_KW_try$Station,levels=c("MLB","MM15","MM110"))
+rich_Frac_Seas_KW_try$Depth_C <- factor(rich_Frac_Seas_KW_try$Depth_C,levels=c("S","M","D"))
+
+pdf(file="Figures/Rplot_Richness_Frac_Seas_boxplot.pdf", width= 5, height=5, pointsize= 8)
+rich_Frac_Seas_boxplot <- ggplot(rich_Frac_Seas_KW_try, aes(x = Frac_Seas, y = mean))  +
+  geom_boxplot(aes(color=Season),outlier.size = 0)  + ggtitle("Fraction & Season") +
+  geom_point(aes(color=Season,shape = Station,size = Fraction,fill=Depth_Seas), position = position_dodge(0.8)) +
+  geom_text(data = rich_Frac_Seas_KW_sigs, aes(label = siglabel, x = Frac_Seas, y = .95), size = 2) +
+  scale_color_manual(name = "season", breaks = c("Sp","Su","Fa"),values = c("Sp" = "darkgreen", "Su" = "red", "Fa" = "mediumblue"),labels = c("Spring",  "Summer", "Fall")) +
+  scale_shape_manual(name = "station", values = c("MLB" = 21, "MM15" = 22, "MM110" = 24),
+                      labels = c("Estuary", "Near",  "Off")) + 
+  scale_size_manual(name = "fraction", breaks = c("B","E"), 
+                     labels = c("Free","Particle"),
+                     values = c("B" = 1, "E" = 2)) +
+  scale_fill_manual(name = "depth", breaks = c("D Sp", "D Su", "D Fa", "M Su", "S Sp", "S Su", "S Fa"), 
+                     labels = c("Deep","Deep","Deep", "Chla max", "Surface", "Surface", "Surface"),
+                     values = c("D Fa" = "mediumblue", "D Sp" = "darkgreen", "D Su" = "red", "M Su" = "orange", "S Sp" = "white", "S Su" = "white", "S Fa" = "white")) +
+ scale_x_discrete(breaks=c("B Sp", "B Su", "B Fa", "E Sp", "E Su", "E Fa"),
+                   labels=c("FL Sp", "FL Su", "FL Fa", "PA Sp", "PA Su", "PA Fa")) + 
+   xlab("") + ylab("") + theme_bw() + 
+  theme(plot.title = element_text(face="bold", size=7),  #Set the plot title
+                                 strip.text.x = element_blank(),  #Set the facet titles on x-axis 
+                                 strip.text.y = element_blank(),  #Set the facet titles on x-axis 
+                                 strip.background = element_blank(),  #Set the facet background to no background
+                                 axis.title.x = element_text(face="bold", size=7),  #Set the x-axis title
+                                 axis.title.y = element_text(face="bold", size=7),  #Set the y-axis title
+                                 axis.text.x = element_text(angle=0, colour = "black", 
+                                                            vjust=1, hjust = 0.5, size=7),  #Set the x-axis labels
+                                 axis.text.y = element_text(colour = "black", size=7),  #Set the y-axis labels
+                                 legend.title = element_text(size = 8, face="bold"),  #Set the legend title 
+                                 legend.text = element_text(size = 8),  #Set the legend text
+                                 legend.position="none", #Default the legend position to the right
+                                 plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")); rich_Frac_Seas_boxplot #top, right, bottom, left
+dev.off()
+
+
+## 3. richness differences based on Station and Season
+#  Resort the factors of Season & Fraction object to have primary sorting by station
+rich_Stat_Seas_KW_try$Stat_Seas <-factor(rich_Stat_Seas_KW_try$Stat_Seas,levels=c( "MLB Sp","MLB Su","MLB Fa","MM15 Sp","MM15 Su","MM15 Fa","MM110 Sp","MM110 Su","MM110 Fa"))
+
+rich_Stat_Seas_KW_sigs <- rich_Stat_Seas_KW_try %>%
+  select(Stat_Seas, Stat_Seas, siglabel) %>%
+  distinct()
+
+# finally, the plot
+alpha_title <- paste("Richness when rarefied at",min(sample_sums(physeq_dupmerge)),"reads")
+rich_Station_KW_try$Fraction <- factor(rich_Station_KW_try$Fraction,levels=c("B","E"))
+rich_Station_KW_try$Season <- factor(rich_Station_KW_try$Season,levels=c("Sp","Su","Fa"))
+rich_Station_KW_try$Station <- factor(rich_Station_KW_try$Station,levels=c("MLB","MM15","MM110"))
+rich_Station_KW_try$Depth_C <- factor(rich_Station_KW_try$Depth_C,levels=c("S","M","D"))
+
+pdf(file="Figures/Rplot_Richness_Stat_Seas_boxplot.pdf", width= 5, height=5, pointsize= 8)
+rich_Stat_Seas_boxplot <- ggplot(rich_Stat_Seas_KW_try, aes(x = Stat_Seas, y = mean))  +
+  geom_boxplot(aes(color=Season),outlier.size = 0)  + ggtitle("Station & Season") +
+  geom_point(aes(color=Season,shape = Station,size = Fraction,fill=Depth_Seas), position = position_dodge(0.8)) +
+  geom_text(data = rich_Stat_Seas_KW_sigs, aes(label = siglabel, x = Stat_Seas, y = .95), size = 2) +
+  scale_color_manual(name = "season", breaks = c("Sp","Su","Fa"),values = c("Sp" = "darkgreen", "Su" = "red", "Fa" = "mediumblue"),labels = c("Spring",  "Summer", "Fall")) +
+  scale_shape_manual(name = "station", values = c("MLB" = 21, "MM15" = 22, "MM110" = 24),
+                      labels = c("Estuary", "Near",  "Off")) + 
+  scale_size_manual(name = "fraction", breaks = c("B","E"), 
+                     labels = c("Free","Particle"),
+                     values = c("B" = 1, "E" = 2)) +
+  scale_fill_manual(name = "depth", breaks = c("D Sp", "D Su", "D Fa", "M Su", "S Sp", "S Su", "S Fa"), 
+                     labels = c("Deep","Deep","Deep", "Chla max", "Surface", "Surface", "Surface"),
+                     values = c("D Fa" = "mediumblue", "D Sp" = "darkgreen", "D Su" = "red", "M Su" = "orange", "S Sp" = "white", "S Su" = "white", "S Fa" = "white")) +
+  scale_x_discrete(breaks=c("MLB Sp", "MM15 Sp", "MM110 Sp","MLB Su", "MM15 Su", "MM110 Su","MLB Fa", "MM15 Fa", "MM110 Fa"),
+                   labels=c("MLB Sp", "MM15 Sp", "MM110 Sp","MLB Su", "MM15 Su", "MM110 Su","MLB Fa", "MM15 Fa", "MM110 Fa")) +   xlab("") + ylab("") + theme_bw() + 
+  theme(plot.title = element_text(face="bold", size=7),  #Set the plot title
+                                 strip.text.x = element_blank(),  #Set the facet titles on x-axis 
+                                 strip.text.y = element_blank(),  #Set the facet titles on x-axis 
+                                 strip.background = element_blank(),  #Set the facet background to no background
+                                 axis.title.x = element_text(face="bold", size=7),  #Set the x-axis title
+                                 axis.title.y = element_text(face="bold", size=7),  #Set the y-axis title
+                                 axis.text.x = element_text(angle=0, colour = "black", 
+                                                            vjust=1, hjust = 0.5, size=7),  #Set the x-axis labels
+                                 axis.text.y = element_text(colour = "black", size=7),  #Set the y-axis labels
+                                 legend.title = element_text(size = 8, face="bold"),  #Set the legend title 
+                                 legend.text = element_text(size = 8),  #Set the legend text
+                                 legend.position="none", #Default the legend position to the right
+                                 plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")); rich_Stat_Seas_boxplot #top, right, bottom, left
+dev.off()
+
+
+## 4. richness differences based on Depth_C and Season
+#rich_stats_off <- rich_stats[rich_stats$Station == "MM110" & rich_stats$Season == "Su", ]
+
+rich_Depth_Seas_KW <- kruskal.test(rich_stats$mean ~ as.factor(rich_stats$Depth_Seas)) 
+print(rich_Depth_Seas_KW)  # show Kruskal Wallis result
+
+# Which samples are significantly different from each other?  
+rich_Depth_Seas_KW_MC <- kruskalmc(rich_stats$mean ~ as.factor(rich_stats$Depth_Seas))  ## Defaults to P < 0.05
+print(rich_Depth_Seas_KW_MC)
+
+# Test to find the letters to represent significance in a plot
+rich_Depth_Seas_KW_test <- rich_Depth_Seas_KW_MC$dif.com$difference # select logical vector
+names(rich_Depth_Seas_KW_test) <- row.names(rich_Depth_Seas_KW_MC$dif.com) # add comparison names
+
+# create a list with "homogenous groups" coded by letter
+rich_Depth_Seas_KW_letters <- multcompLetters(rich_Depth_Seas_KW_test, compare="<", threshold=0.05, 
+                                Letters=c(letters, LETTERS, "."), reversed = FALSE)
+
+#  Extract the values from the multcompLetters object
+rich_Depth_Seas_KW_sigs_dataframe <-  data.frame(as.vector(names(rich_Depth_Seas_KW_letters$Letters)), as.vector(rich_Depth_Seas_KW_letters$Letters))
+colnames(rich_Depth_Seas_KW_sigs_dataframe) <- c("Depth_Seas", "siglabel")
+rich_Depth_Seas_KW_try <- merge(rich_stats, rich_Depth_Seas_KW_sigs_dataframe, by = "Depth_Seas")
+
+rich_Depth_Seas_KW_try$Depth_Seas <-factor(rich_Depth_Seas_KW_try$Depth_Seas,levels=c( "S Sp", "S Su", "S Fa", "M Su", "D Sp", "D Su", "D Fa"))
+
+rich_Depth_Seas_KW_sigs <- rich_Depth_Seas_KW_try %>%
+  select(Depth_Seas, Depth_Seas, siglabel) %>%
+  distinct()
+
+# finally, the plot
+alpha_title <- paste("Richness when rarefied at",min(sample_sums(physeq_dupmerge)),"reads")
+rich_Depth_Seas_KW_try$Fraction <- factor(rich_Depth_Seas_KW_try$Fraction,levels=c("B","E"))
+rich_Depth_Seas_KW_try$Season <- factor(rich_Depth_Seas_KW_try$Season,levels=c("Sp","Su","Fa"))
+rich_Depth_Seas_KW_try$Station <- factor(rich_Depth_Seas_KW_try$Station,levels=c("MLB","MM15","MM110"))
+rich_Depth_Seas_KW_try$Depth_C <- factor(rich_Depth_Seas_KW_try$Depth_C,levels=c("S","M","D"))
+
+pdf(file="Figures/Rplot_Richness_Depth_Seas_boxplot.pdf", width= 5, height=5, pointsize= 8)
+rich_Depth_Seas_boxplot <- ggplot(rich_Depth_Seas_KW_try, aes(x = Depth_Seas, y = mean))  +
+  geom_boxplot(aes(color=Season),outlier.size = 0)  + ggtitle("Depth & Season") +
+  geom_point(aes(color=Season,shape = Station,size = Fraction,fill=Depth_Seas), position = position_dodge(0.8)) +
+  geom_text(data = rich_Depth_Seas_KW_sigs, aes(label = siglabel, x = Depth_Seas, y = .95), size = 2) +
+  scale_color_manual(name = "season", breaks = c("Sp","Su","Fa"),values = c("Sp" = "darkgreen", "Su" = "red", "Fa" = "mediumblue"),labels = c("Spring",  "Summer", "Fall")) +
+  scale_shape_manual(name = "station", values = c("MLB" = 21, "MM15" = 22, "MM110" = 24),
+                      labels = c("Estuary", "Near",  "Off")) + 
+  scale_size_manual(name = "fraction", breaks = c("B","E"), 
+                     labels = c("Free","Particle"),
+                     values = c("B" = 1, "E" = 2)) +
+  scale_fill_manual(name = "depth", breaks = c("D Sp", "D Su", "D Fa", "M Su", "S Sp", "S Su", "S Fa"), 
+                     labels = c("Deep","Deep","Deep", "Chla max", "Surface", "Surface", "Surface"),
+                     values = c("D Fa" = "mediumblue", "D Sp" = "darkgreen", "D Su" = "red", "M Su" = "orange", "S Sp" = "white", "S Su" = "white", "S Fa" = "white")) +
+  scale_x_discrete(breaks=c("S Sp", "S Su", "S Fa", "M Su", "D Sp", "D Su", "D Fa"),
+                   labels=c("S Sp", "S Su", "S Fa", "M Su", "D Sp", "D Su", "D Fa")) + 
+  xlab("") + ylab("") + theme_bw() + 
+  theme(plot.title = element_text(face="bold", size=7),  #Set the plot title
+                                 strip.text.x = element_blank(),  #Set the facet titles on x-axis 
+                                 strip.text.y = element_blank(),  #Set the facet titles on x-axis 
+                                 strip.background = element_blank(),  #Set the facet background to no background
+                                 axis.title.x = element_text(face="bold", size=7),  #Set the x-axis title
+                                 axis.title.y = element_text(face="bold", size=7),  #Set the y-axis title
+                                 axis.text.x = element_text(angle=0, colour = "black", 
+                                                            vjust=1, hjust = 0.5, size=7),  #Set the x-axis labels
+                                 axis.text.y = element_text(colour = "black", size=7),  #Set the y-axis labels
+                                 legend.title = element_text(size = 8, face="bold"),  #Set the legend title 
+                                 legend.text = element_text(size = 8),  #Set the legend text
+                                 legend.position="none", #Default the legend position to the right
+                                 plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")); rich_Depth_Seas_boxplot #top, right, bottom, left
+dev.off()
+```
+
 
 ```{r evenness plots} 
 ###EVENNESS PLOTS
@@ -558,30 +952,45 @@ even_Season_KW_sigs <- even_Season_KW_try %>%
   distinct()
 
 # finally, the plot
-pdf(file="Figures/Rplot_Evenness_Season_boxplot.pdf", width= 5, height=5, pointsize= 14)
 alpha_title <- paste("Evenness when rarefied at",min(sample_sums(physeq_dupmerge)),"reads")
-even_Season_boxplot <- ggplot(even_Season_KW_try, aes(x = Season, y = mean, fill = Season)) + geom_point(size = 2) +
-  geom_boxplot()  + ggtitle(alpha_title) +
-  geom_text(data = even_Season_KW_sigs, aes(label = siglabel, x = Season, y = 0), size = 4) +
-  scale_fill_manual(name = "", limits=c("Sp", "Su", "Fa"), 
-                     values = c("Sp" = "grey","Su" = "grey","Fa" = "grey"))+
+even_Season_KW_try$Fraction <- factor(even_Season_KW_try$Fraction,levels=c("B","E"))
+even_Season_KW_try$Season <- factor(even_Season_KW_try$Season,levels=c("Sp","Su","Fa"))
+even_Season_KW_try$Station <- factor(even_Season_KW_try$Station,levels=c("MLB","MM15","MM110"))
+even_Season_KW_try$Depth_C <- factor(even_Season_KW_try$Depth_C,levels=c("S","M","D"))
+
+pdf(file="Figures/Rplot_Evenness_Season_boxplot.pdf", width= 5, height=5, pointsize= 8)
+even_Season_boxplot <- ggplot(even_Season_KW_try, aes(x = Season, y = mean))  +
+  geom_boxplot(aes(color=Season),outlier.size = 0)  + #ggtitle(alpha_title) +
+  geom_point(aes(color=Season,shape = Station,size = Fraction,fill=Depth_Seas), position = position_dodge(0.8)) +
+  geom_text(data = even_Season_KW_sigs, aes(label = siglabel, x = Season, y = 0), size = 2) +
+  scale_color_manual(name = "season", values = c("Sp" = "darkgreen", "Su" = "red", "Fa" = "mediumblue"),
+                     labels = c("Spring",  "Summer", "Fall")) +
+  scale_shape_manual(name = "station", values = c("MLB" = 21, "MM15" = 22, "MM110" = 24),
+                     labels = c("Estuary", "Near",  "Off")) + 
+  scale_size_manual(name = "fraction", breaks = c("B","E"), 
+                     labels = c("Free","Particle"),
+                     values = c("B" = 1, "E" = 2)) +
+  scale_fill_manual(name = "depth", breaks = c("D Sp", "D Su", "D Fa", "M Su", "S Sp", "S Su", "S Fa"), 
+                     labels = c("Deep","Deep","Deep", "Chla max", "Surface", "Surface", "Surface"),
+                     values = c("D Fa" = "mediumblue", "D Sp" = "darkgreen", "D Su" = "red", "M Su" = "orange", "S Sp" = "white", "S Su" = "white", "S Fa" = "white")) +
   scale_x_discrete(breaks=c("Sp", "Su", "Fa"),
                    labels=c("Spring\n(n=14)","Summer\n(n=17)", "Fall\n(n=16)")) + 
-  xlab("Season)") + ylab("Simpson's Evenness") + theme_bw() + 
-  theme(plot.title = element_text(face="bold", size = 12),  #Set the plot title
+  xlab("") + ylab("Simpson's Evenness") + theme_bw() + 
+  theme(plot.title = element_text(face="bold", size=7),  #Set the plot title
                                  strip.text.x = element_blank(),  #Set the facet titles on x-axis 
                                  strip.text.y = element_blank(),  #Set the facet titles on x-axis 
                                  strip.background = element_blank(),  #Set the facet background to no background
-                                 axis.title.x = element_text(face="bold", size=10),  #Set the x-axis title
-                                 axis.title.y = element_text(face="bold", size=10),  #Set the y-axis title
+                                 axis.title.x = element_text(face="bold", size=7),  #Set the x-axis title
+                                 axis.title.y = element_text(face="bold", size=7),  #Set the y-axis title
                                  axis.text.x = element_text(angle=0, colour = "black", 
-                                                            vjust=1, hjust = 1, size=10),  #Set the x-axis labels
-                                 axis.text.y = element_text(colour = "black", size=10),  #Set the y-axis labels
+                                                            vjust=1, hjust = 0.5, size=7),  #Set the x-axis labels
+                                 axis.text.y = element_text(colour = "black", size=7),  #Set the y-axis labels
                                  legend.title = element_text(size = 8, face="bold"),  #Set the legend title 
                                  legend.text = element_text(size = 8),  #Set the legend text
                                  legend.position="none", #Default the legend position to the right
                                  plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")); even_Season_boxplot #top, right, bottom, left
 dev.off()
+
 
 ## 2. Evenness differences based on Fraction
 even_Fraction_KW <- kruskal.test(simps_even$mean ~ as.factor(simps_even$Fraction)) 
@@ -611,25 +1020,39 @@ even_Fraction_KW_sigs <- even_Fraction_KW_try %>%
   distinct()
 
 # finally, the plot
-pdf(file="Figures/Rplot_Evenness_Fraction_boxplot.pdf", width= 5, height=5, pointsize= 14)
 alpha_title <- paste("Evenness when rarefied at",min(sample_sums(physeq_dupmerge)),"reads")
-even_Fraction_boxplot <- ggplot(even_Fraction_KW_try, aes(x = Fraction, y = mean, fill = Fraction)) + geom_point(size = 2) +
-  geom_boxplot()  + ggtitle(alpha_title) +
-  geom_text(data = even_Fraction_KW_sigs, aes(label = siglabel, x = Fraction, y = 0), size = 4) +
-  scale_fill_manual(name = "", limits=c("B", "E"), 
-                     values = c("B" = "grey","E" = "grey"))+
-  scale_x_discrete(breaks=c("B", "E"),
-                   labels=c("Free-living\n(n=24)","Particle-associated\n(n=23)")) + 
-  xlab("Fraction)") + ylab("Simpson's Evenness") + theme_bw() + 
-  theme(plot.title = element_text(face="bold", size = 12),  #Set the plot title
+even_Fraction_KW_try$Fraction <- factor(even_Fraction_KW_try$Fraction,levels=c("B","E"))
+even_Fraction_KW_try$Season <- factor(even_Fraction_KW_try$Season,levels=c("Sp","Su","Fa"))
+even_Fraction_KW_try$Station <- factor(even_Fraction_KW_try$Station,levels=c("MLB","MM15","MM110"))
+even_Fraction_KW_try$Depth_C <- factor(even_Fraction_KW_try$Depth_C,levels=c("S","M","D"))
+
+pdf(file="Figures/Rplot_Evenness_Fraction_boxplot.pdf", width= 5, height=5, pointsize= 8)
+even_Fraction_boxplot <- ggplot(even_Fraction_KW_try, aes(x = Fraction, y = mean))  +
+  geom_boxplot(aes(color=Season),outlier.size = 1)  + #ggtitle(alpha_title) +
+  #geom_point(aes(color=Season,shape = Station,size = Fraction,fill=Depth_Seas), position = position_dodge(0.8)) +
+  geom_text(data = even_Fraction_KW_sigs, aes(label = siglabel, x = Fraction, y = 0), size = 2) +
+  scale_color_manual(name = "season", breaks = c("Sp","Su","Fa"),values = c("Sp" = "darkgreen", "Su" = "red", "Fa" = "mediumblue"),labels = c("Spring",  "Summer", "Fall")) +
+  scale_shape_manual(name = "station", values = c("MLB" = 21, "MM15" = 22, "MM110" = 24),
+                      labels = c("Estuary", "Near",  "Off")) + 
+  scale_size_manual(name = "fraction", breaks = c("B","E"), 
+                     labels = c("Free","Particle"),
+                     values = c("B" = 1, "E" = 2)) +
+  scale_fill_manual(name = "depth", breaks = c("D Sp", "D Su", "D Fa", "M Su", "S Sp", "S Su", "S Fa"), 
+                     labels = c("Deep","Deep","Deep", "Chla max", "Surface", "Surface", "Surface"),
+                     values = c("D Fa" = "mediumblue", "D Sp" = "darkgreen", "D Su" = "red", "M Su" = "orange", "S Sp" = "white", "S Su" = "white", "S Fa" = "white")) +
+ scale_x_discrete(breaks=c("B", "E"),
+                   labels=c("FL\n(n=24)","PA\n(n=23)")) + 
+   xlab("") + ylab("") + 
+  theme_bw() + 
+  theme(plot.title = element_text(face="bold", size=7),  #Set the plot title
                                  strip.text.x = element_blank(),  #Set the facet titles on x-axis 
                                  strip.text.y = element_blank(),  #Set the facet titles on x-axis 
                                  strip.background = element_blank(),  #Set the facet background to no background
-                                 axis.title.x = element_text(face="bold", size=10),  #Set the x-axis title
-                                 axis.title.y = element_text(face="bold", size=10),  #Set the y-axis title
+                                 axis.title.x = element_text(face="bold", size=7),  #Set the x-axis title
+                                 axis.title.y = element_text(face="bold", size=7),  #Set the y-axis title
                                  axis.text.x = element_text(angle=0, colour = "black", 
-                                                            vjust=1, hjust = 1, size=10),  #Set the x-axis labels
-                                 axis.text.y = element_text(colour = "black", size=10),  #Set the y-axis labels
+                                                            vjust=1, hjust = 0.5, size=7),  #Set the x-axis labels
+                                 axis.text.y = element_text(colour = "black", size=7),  #Set the y-axis labels
                                  legend.title = element_text(size = 8, face="bold"),  #Set the legend title 
                                  legend.text = element_text(size = 8),  #Set the legend text
                                  legend.position="none", #Default the legend position to the right
@@ -664,25 +1087,38 @@ even_Station_KW_sigs <- even_Station_KW_try %>%
   distinct()
 
 # finally, the plot
-pdf(file="Figures/Rplot_Evenness_Station_boxplot.pdf", width= 5, height=5, pointsize= 14)
 alpha_title <- paste("Evenness when rarefied at",min(sample_sums(physeq_dupmerge)),"reads")
-even_Station_boxplot <- ggplot(even_Station_KW_try, aes(x = Station, y = mean, fill = Station)) + geom_point(size = 2) +
-  geom_boxplot()  + ggtitle(alpha_title) +
-  geom_text(data = even_Station_KW_sigs, aes(label = siglabel, x = Station, y = 0), size = 4) +
-  scale_fill_manual(name = "", limits=c("MLB", "MM15", "MM110"), 
-                     values = c("MLB" = "grey","MM15" = "grey","MM110" = "grey"))+
-  scale_x_discrete(breaks=c("MLB", "MM15", "MM110"),
-                   labels=c("Estuary\n(n=10)","Nearshore\n(n=18)", "Offshore\n(n=19)")) + 
-  xlab("Station)") + ylab("Simpson's Evenness") + theme_bw() + 
-  theme(plot.title = element_text(face="bold", size = 12),  #Set the plot title
+even_Station_KW_try$Fraction <- factor(even_Station_KW_try$Fraction,levels=c("B","E"))
+even_Station_KW_try$Season <- factor(even_Station_KW_try$Season,levels=c("Sp","Su","Fa"))
+even_Station_KW_try$Station <- factor(even_Station_KW_try$Station,levels=c("MLB","MM15","MM110"))
+even_Station_KW_try$Depth_C <- factor(even_Station_KW_try$Depth_C,levels=c("S","M","D"))
+
+pdf(file="Figures/Rplot_Evenness_Station_boxplot.pdf", width= 5, height=5, pointsize= 8)
+even_Station_boxplot <- ggplot(even_Station_KW_try, aes(x = Station, y = mean))  +
+  geom_boxplot(aes(color=Season),outlier.size = 1)  + #ggtitle(alpha_title) +
+  #geom_point(aes(color=Season,shape = Station,size = Fraction,fill=Depth_Seas), position = position_dodge(0.8)) +
+  geom_text(data = even_Station_KW_sigs, aes(label = siglabel, x = Station, y = 0), size = 2) +
+  scale_color_manual(name = "season", breaks = c("Sp","Su","Fa"),values = c("Sp" = "darkgreen", "Su" = "red", "Fa" = "mediumblue"),labels = c("Spring",  "Summer", "Fall")) +
+  scale_shape_manual(name = "station", values = c("MLB" = 21, "MM15" = 22, "MM110" = 24),
+                      labels = c("Estuary", "Near",  "Off")) + 
+  scale_size_manual(name = "fraction", breaks = c("B","E"), 
+                     labels = c("Free","Particle"),
+                     values = c("B" = 1, "E" = 2)) +
+  scale_fill_manual(name = "depth", breaks = c("D Sp", "D Su", "D Fa", "M Su", "S Sp", "S Su", "S Fa"), 
+                     labels = c("Deep","Deep","Deep", "Chla max", "Surface", "Surface", "Surface"),
+                     values = c("D Fa" = "mediumblue", "D Sp" = "darkgreen", "D Su" = "red", "M Su" = "orange", "S Sp" = "white", "S Su" = "white", "S Fa" = "white")) +  scale_x_discrete(breaks=c("MLB", "MM15", "MM110"),
+                   labels=c("Estuary\n(n=10)","Near\n(n=18)", "Off\n(n=19)")) + 
+  xlab("") + ylab("") + 
+  theme_bw() + 
+  theme(plot.title = element_text(face="bold", size=7),  #Set the plot title
                                  strip.text.x = element_blank(),  #Set the facet titles on x-axis 
                                  strip.text.y = element_blank(),  #Set the facet titles on x-axis 
                                  strip.background = element_blank(),  #Set the facet background to no background
-                                 axis.title.x = element_text(face="bold", size=10),  #Set the x-axis title
-                                 axis.title.y = element_text(face="bold", size=10),  #Set the y-axis title
+                                 axis.title.x = element_text(face="bold", size=7),  #Set the x-axis title
+                                 axis.title.y = element_text(face="bold", size=7),  #Set the y-axis title
                                  axis.text.x = element_text(angle=0, colour = "black", 
-                                                            vjust=1, hjust = 1, size=10),  #Set the x-axis labels
-                                 axis.text.y = element_text(colour = "black", size=10),  #Set the y-axis labels
+                                                            vjust=1, hjust = 0.5, size=7),  #Set the x-axis labels
+                                 axis.text.y = element_text(colour = "black", size=7),  #Set the y-axis labels
                                  legend.title = element_text(size = 8, face="bold"),  #Set the legend title 
                                  legend.text = element_text(size = 8),  #Set the legend text
                                  legend.position="none", #Default the legend position to the right
@@ -719,25 +1155,39 @@ even_Depth_C_KW_sigs <- even_Depth_C_KW_try %>%
   distinct()
 
 # finally, the plot
-pdf(file="Figures/Rplot_Evenness_Depth_C_boxplot.pdf", width= 5, height=5, pointsize= 14)
 alpha_title <- paste("Evenness when rarefied at",min(sample_sums(physeq_dupmerge)),"reads")
-even_Depth_C_boxplot <- ggplot(even_Depth_C_KW_try, aes(x = Depth_C, y = mean, fill = Depth_C)) + geom_point(size = 2) +
-  geom_boxplot()  + ggtitle(alpha_title) +
-  geom_text(data = even_Depth_C_KW_sigs, aes(label = siglabel, x = Depth_C, y = 0), size = 4) +
-  scale_fill_manual(name = "", limits=c("S", "M", "D"), 
-                     values = c("S" = "grey","M" = "grey","D" = "grey"))+
+even_Depth_C_KW_try$Fraction <- factor(even_Depth_C_KW_try$Fraction,levels=c("B","E"))
+even_Depth_C_KW_try$Season <- factor(even_Depth_C_KW_try$Season,levels=c("Sp","Su","Fa"))
+even_Depth_C_KW_try$Station <- factor(even_Depth_C_KW_try$Station,levels=c("MLB","MM15","MM110"))
+even_Depth_C_KW_try$Depth_C <- factor(even_Depth_C_KW_try$Depth_C,levels=c("S","M","D"))
+
+pdf(file="Figures/Rplot_Evenness_Depth_C_boxplot.pdf", width= 5, height=5, pointsize= 8)
+even_Depth_C_boxplot <- ggplot(even_Depth_C_KW_try, aes(x = Depth_C, y = mean))  +
+  geom_boxplot(aes(color=Season),outlier.size = 1)  + #ggtitle(alpha_title) +
+  #geom_point(aes(color=Season,shape = Station,size = Fraction,fill=Depth_Seas), position = position_dodge(0.8)) +
+  geom_text(data = even_Depth_C_KW_sigs, aes(label = siglabel, x = Depth_C, y = 0), size = 2) +
+  scale_color_manual(name = "season", breaks = c("Sp","Su","Fa"),values = c("Sp" = "darkgreen", "Su" = "red", "Fa" = "mediumblue"),labels = c("Spring",  "Summer", "Fall")) +
+  scale_shape_manual(name = "station", values = c("MLB" = 21, "MM15" = 22, "MM110" = 24),
+                      labels = c("Estuary", "Near",  "Off")) + 
+  scale_size_manual(name = "fraction", breaks = c("B","E"), 
+                     labels = c("Free","Particle"),
+                     values = c("B" = 1, "E" = 2)) +
+  scale_fill_manual(name = "depth", breaks = c("D Sp", "D Su", "D Fa", "M Su", "S Sp", "S Su", "S Fa"), 
+                     labels = c("Deep","Deep","Deep", "Chla max", "Surface", "Surface", "Surface"),
+                     values = c("D Fa" = "mediumblue", "D Sp" = "darkgreen", "D Su" = "red", "M Su" = "orange", "S Sp" = "white", "S Su" = "white", "S Fa" = "white")) +
   scale_x_discrete(breaks=c("S", "M", "D"),
                    labels=c("Surface\n(n=30)","Chla max\n(n=2)","Deep\n(n=15)")) + 
-  xlab("Depth_C)") + ylab("Simpson's Evenness") + theme_bw() + 
-  theme(plot.title = element_text(face="bold", size = 12),  #Set the plot title
+  xlab("") + ylab("") + 
+  theme_bw() + 
+  theme(plot.title = element_text(face="bold", size=7),  #Set the plot title
                                  strip.text.x = element_blank(),  #Set the facet titles on x-axis 
                                  strip.text.y = element_blank(),  #Set the facet titles on x-axis 
                                  strip.background = element_blank(),  #Set the facet background to no background
-                                 axis.title.x = element_text(face="bold", size=10),  #Set the x-axis title
-                                 axis.title.y = element_text(face="bold", size=10),  #Set the y-axis title
+                                 axis.title.x = element_text(face="bold", size=7),  #Set the x-axis title
+                                 axis.title.y = element_text(face="bold", size=7),  #Set the y-axis title
                                  axis.text.x = element_text(angle=0, colour = "black", 
-                                                            vjust=1, hjust = 1, size=10),  #Set the x-axis labels
-                                 axis.text.y = element_text(colour = "black", size=10),  #Set the y-axis labels
+                                                            vjust=1, hjust = 0.5, size=7),  #Set the x-axis labels
+                                 axis.text.y = element_text(colour = "black", size=7),  #Set the y-axis labels
                                  legend.title = element_text(size = 8, face="bold"),  #Set the legend title 
                                  legend.text = element_text(size = 8),  #Set the legend text
                                  legend.position="none", #Default the legend position to the right
@@ -746,7 +1196,271 @@ dev.off()
 
 ```
 
-### Table + Figure 2: PCoA, PERMANOVA
+```{r evenness plots combination of factors to create multicomp letters based on Kruskall Wallis test between sub boxplots data}
+## 1. evenness differences based on Season and Station combination
+even_Stat_Seas_KW <- kruskal.test(simps_even$mean ~ as.factor(simps_even$Stat_Seas)) 
+print(even_Stat_Seas_KW)  # show Kruskal Wallis result
+
+# Which samples are significantly different from each other?  
+even_Stat_Seas_KW_MC <- kruskalmc(simps_even$mean ~ as.factor(simps_even$Stat_Seas))  ## Defaults to P < 0.05
+print(even_Stat_Seas_KW_MC)
+
+# Test to find the letters to represent significance in a plot
+even_Stat_Seas_KW_test <- even_Stat_Seas_KW_MC$dif.com$difference # select logical vector
+names(even_Stat_Seas_KW_test) <- row.names(even_Stat_Seas_KW_MC$dif.com) # add comparison names
+
+# create a list with "homogenous groups" coded by letter
+even_Stat_Seas_KW_letters <- multcompLetters(even_Stat_Seas_KW_test, compare="<", threshold=0.05, 
+                                Letters=c(letters, LETTERS, "."), reversed = FALSE)
+
+#  Extract the values from the multcompLetters object
+even_Stat_Seas_KW_sigs_dataframe <-  data.frame(as.vector(names(even_Stat_Seas_KW_letters$Letters)), as.vector(even_Stat_Seas_KW_letters$Letters))
+colnames(even_Stat_Seas_KW_sigs_dataframe) <- c("Stat_Seas", "siglabel")
+even_Stat_Seas_KW_try <- merge(simps_even, even_Stat_Seas_KW_sigs_dataframe, by = "Stat_Seas")
+
+even_Stat_Seas_KW_try$Stat_Seas <-factor(even_Stat_Seas_KW_try$Stat_Seas,levels=c( "MLB Sp","MM15 Sp","MM110 Sp","MLB Su","MM15 Su","MM110 Su","MLB Fa","MM15 Fa","MM110 Fa"))
+
+even_Stat_Seas_KW_sigs <- even_Stat_Seas_KW_try %>%
+  select(Stat_Seas, Stat_Seas, siglabel) %>%
+  distinct()
+
+# finally, the plot, after first setting the order of the factor levels
+alpha_title <- paste("evenness when rarefied at",min(sample_sums(physeq_dupmerge)),"reads")
+even_Stat_Seas_KW_try$Fraction <- factor(even_Stat_Seas_KW_try$Fraction,levels=c("B","E"))
+even_Stat_Seas_KW_try$Season <- factor(even_Stat_Seas_KW_try$Season,levels=c("Sp","Su","Fa"))
+even_Stat_Seas_KW_try$Station <- factor(even_Stat_Seas_KW_try$Station,levels=c("MLB","MM15","MM110"))
+even_Stat_Seas_KW_try$Depth_C <- factor(even_Stat_Seas_KW_try$Depth_C,levels=c("S","M","D"))
+
+pdf(file="Figures/Rplot_evenness_Seas_Stat_boxplot.pdf", width= 5, height=5, pointsize= 8)
+even_Seas_Stat_boxplot <- ggplot(even_Stat_Seas_KW_try, aes(x = Stat_Seas, y = mean))  +
+  geom_boxplot(outlier.size = 0)  + ggtitle("") +
+  geom_point(aes(color=Season,shape = Station,size = Fraction,fill=Depth_Seas), position = position_dodge(0.8)) +
+  geom_text(data = even_Stat_Seas_KW_sigs, aes(label = siglabel, x = Stat_Seas, y = 0), size = 2) +
+  scale_color_manual(name = "season", values = c("Sp" = "darkgreen", "Su" = "red", "Fa" = "mediumblue"),
+                     labels = c("Spring",  "Summer", "Fall")) +
+  scale_shape_manual(name = "station", values = c("MLB" = 21, "MM15" = 22, "MM110" = 24),
+                     labels = c("Estuary", "Near",  "Off")) + 
+  scale_size_manual(name = "fraction", breaks = c("B","E"), 
+                     labels = c("Free","Particle"),
+                     values = c("B" = 1, "E" = 2)) +
+    scale_fill_manual(name = "depth", breaks = c("D Sp", "D Su", "D Fa", "M Su", "S Sp", "S Su", "S Fa"), 
+                     labels = c("Deep","Deep","Deep", "Chla max", "Surface", "Surface", "Surface"),
+                     values = c("D Fa" = "mediumblue", "D Sp" = "darkgreen", "D Su" = "red", "M Su" = "orange", "S Sp" = "white", "S Su" = "white", "S Fa" = "white")) +
+  scale_x_discrete(breaks=c("MLB Sp", "MM15 Sp", "MM110 Sp","MLB Su", "MM15 Su", "MM110 Su","MLB Fa", "MM15 Fa", "MM110 Fa"),
+                   labels=c("MLB Sp", "MM15 Sp", "MM110 Sp","MLB Su", "MM15 Su", "MM110 Su","MLB Fa", "MM15 Fa", "MM110 Fa")) + 
+  xlab("") + ylab("Simpson' Evenness") + theme_bw() + 
+  theme(plot.title = element_text(face="bold", size=7),  #Set the plot title
+                                 strip.text.x = element_blank(),  #Set the facet titles on x-axis 
+                                 strip.text.y = element_blank(),  #Set the facet titles on x-axis 
+                                 strip.background = element_blank(),  #Set the facet background to no background
+                                 axis.title.x = element_text(face="bold", size=7),  #Set the x-axis title
+                                 axis.title.y = element_text(face="bold", size=7),  #Set the y-axis title
+                                 axis.text.x = element_text(angle=0, colour = "black", 
+                                                            vjust=1, hjust = 0.5, size=7),  #Set the x-axis labels
+                                 axis.text.y = element_text(colour = "black", size=7),  #Set the y-axis labels
+                                 legend.title = element_text(size = 8, face="bold"),  #Set the legend title 
+                                 legend.text = element_text(size = 8),  #Set the legend text
+                                 legend.position="none", #Default the legend position to the right
+                                 plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")); even_Seas_Stat_boxplot #top, right, bottom, left
+dev.off()
+
+## 2. evenness differences based on Fraction and Season
+even_Frac_Seas_KW <- kruskal.test(simps_even$mean ~ as.factor(simps_even$Frac_Seas)) 
+print(even_Frac_Seas_KW)  # show Kruskal Wallis result
+
+# Which samples are significantly different from each other?  
+even_Frac_Seas_KW_MC <- kruskalmc(simps_even$mean ~ as.factor(simps_even$Frac_Seas))  ## Defaults to P < 0.05
+print(even_Frac_Seas_KW_MC)
+
+# Test to find the letters to represent significance in a plot
+even_Frac_Seas_KW_test <- even_Frac_Seas_KW_MC$dif.com$difference # select logical vector
+names(even_Frac_Seas_KW_test) <- row.names(even_Frac_Seas_KW_MC$dif.com) # add comparison names
+
+# create a list with "homogenous groups" coded by letter
+even_Frac_Seas_KW_letters <- multcompLetters(even_Frac_Seas_KW_test, compare="<", threshold=0.05, 
+                                Letters=c(letters, LETTERS, "."), reversed = FALSE)
+
+#  Extract the values from the multcompLetters object
+even_Frac_Seas_KW_sigs_dataframe <-  data.frame(as.vector(names(even_Frac_Seas_KW_letters$Letters)), as.vector(even_Frac_Seas_KW_letters$Letters))
+colnames(even_Frac_Seas_KW_sigs_dataframe) <- c("Frac_Seas", "siglabel")
+even_Frac_Seas_KW_try <- merge(simps_even, even_Frac_Seas_KW_sigs_dataframe, by = "Frac_Seas")
+
+even_Frac_Seas_KW_try$Frac_Seas <-factor(even_Frac_Seas_KW_try$Frac_Seas,levels=c( "B Sp", "B Su", "B Fa", "E Sp", "E Su", "E Fa"))
+
+even_Frac_Seas_KW_sigs <- even_Frac_Seas_KW_try %>%
+  select(Frac_Seas, Frac_Seas, siglabel) %>%
+  distinct()
+
+# finally, the plot
+alpha_title <- paste("evenness when rarefied at",min(sample_sums(physeq_dupmerge)),"reads")
+even_Frac_Seas_KW_try$Fraction <- factor(even_Frac_Seas_KW_try$Fraction,levels=c("B","E"))
+even_Frac_Seas_KW_try$Season <- factor(even_Frac_Seas_KW_try$Season,levels=c("Sp","Su","Fa"))
+even_Frac_Seas_KW_try$Station <- factor(even_Frac_Seas_KW_try$Station,levels=c("MLB","MM15","MM110"))
+even_Frac_Seas_KW_try$Depth_C <- factor(even_Frac_Seas_KW_try$Depth_C,levels=c("S","M","D"))
+
+pdf(file="Figures/Rplot_evenness_Frac_Seas_boxplot.pdf", width= 5, height=5, pointsize= 8)
+even_Frac_Seas_boxplot <- ggplot(even_Frac_Seas_KW_try, aes(x = Frac_Seas, y = mean))  +
+  geom_boxplot(aes(color=Season),outlier.size = 0)  + ggtitle("") +
+  geom_point(aes(color=Season,shape = Station,size = Fraction,fill=Depth_Seas), position = position_dodge(0.8)) +
+  geom_text(data = even_Frac_Seas_KW_sigs, aes(label = siglabel, x = Frac_Seas, y = 0), size = 2) +
+  scale_color_manual(name = "season", breaks = c("Sp","Su","Fa"),values = c("Sp" = "darkgreen", "Su" = "red", "Fa" = "mediumblue"),labels = c("Spring",  "Summer", "Fall")) +
+  scale_shape_manual(name = "station", values = c("MLB" = 21, "MM15" = 22, "MM110" = 24),
+                      labels = c("Estuary", "Near",  "Off")) + 
+  scale_size_manual(name = "fraction", breaks = c("B","E"), 
+                     labels = c("Free","Particle"),
+                     values = c("B" = 1, "E" = 2)) +
+  scale_fill_manual(name = "depth", breaks = c("D Sp", "D Su", "D Fa", "M Su", "S Sp", "S Su", "S Fa"), 
+                     labels = c("Deep","Deep","Deep", "Chla max", "Surface", "Surface", "Surface"),
+                     values = c("D Fa" = "mediumblue", "D Sp" = "darkgreen", "D Su" = "red", "M Su" = "orange", "S Sp" = "white", "S Su" = "white", "S Fa" = "white")) +
+ scale_x_discrete(breaks=c("B Sp", "B Su", "B Fa", "E Sp", "E Su", "E Fa"),
+                   labels=c("FL Sp", "FL Su", "FL Fa", "PA Sp", "PA Su", "PA Fa")) + 
+   xlab("") + ylab("") + theme_bw() + 
+  theme(plot.title = element_text(face="bold", size=7),  #Set the plot title
+                                 strip.text.x = element_blank(),  #Set the facet titles on x-axis 
+                                 strip.text.y = element_blank(),  #Set the facet titles on x-axis 
+                                 strip.background = element_blank(),  #Set the facet background to no background
+                                 axis.title.x = element_text(face="bold", size=7),  #Set the x-axis title
+                                 axis.title.y = element_text(face="bold", size=7),  #Set the y-axis title
+                                 axis.text.x = element_text(angle=0, colour = "black", 
+                                                            vjust=1, hjust = 0.5, size=7),  #Set the x-axis labels
+                                 axis.text.y = element_text(colour = "black", size=7),  #Set the y-axis labels
+                                 legend.title = element_text(size = 8, face="bold"),  #Set the legend title 
+                                 legend.text = element_text(size = 8),  #Set the legend text
+                                 legend.position="none", #Default the legend position to the right
+                                 plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")); even_Frac_Seas_boxplot #top, right, bottom, left
+dev.off()
+
+
+## 3. evenness differences based on Station and Season
+#  Resort the factors of Season & Fraction object to have primary sorting by station
+even_Stat_Seas_KW_try$Stat_Seas <-factor(even_Stat_Seas_KW_try$Stat_Seas,levels=c( "MLB Sp","MLB Su","MLB Fa","MM15 Sp","MM15 Su","MM15 Fa","MM110 Sp","MM110 Su","MM110 Fa"))
+
+even_Stat_Seas_KW_sigs <- even_Stat_Seas_KW_try %>%
+  select(Stat_Seas, Stat_Seas, siglabel) %>%
+  distinct()
+
+# finally, the plot
+alpha_title <- paste("evenness when rarefied at",min(sample_sums(physeq_dupmerge)),"reads")
+even_Station_KW_try$Fraction <- factor(even_Station_KW_try$Fraction,levels=c("B","E"))
+even_Station_KW_try$Season <- factor(even_Station_KW_try$Season,levels=c("Sp","Su","Fa"))
+even_Station_KW_try$Station <- factor(even_Station_KW_try$Station,levels=c("MLB","MM15","MM110"))
+even_Station_KW_try$Depth_C <- factor(even_Station_KW_try$Depth_C,levels=c("S","M","D"))
+
+pdf(file="Figures/Rplot_evenness_Stat_Seas_boxplot.pdf", width= 5, height=5, pointsize= 8)
+even_Stat_Seas_boxplot <- ggplot(even_Stat_Seas_KW_try, aes(x = Stat_Seas, y = mean))  +
+  geom_boxplot(aes(color=Season),outlier.size = 0)  + ggtitle("") +
+  geom_point(aes(color=Season,shape = Station,size = Fraction,fill=Depth_Seas), position = position_dodge(0.8)) +
+  geom_text(data = even_Stat_Seas_KW_sigs, aes(label = siglabel, x = Stat_Seas, y = 0), size = 2) +
+  scale_color_manual(name = "season", breaks = c("Sp","Su","Fa"),values = c("Sp" = "darkgreen", "Su" = "red", "Fa" = "mediumblue"),labels = c("Spring",  "Summer", "Fall")) +
+  scale_shape_manual(name = "station", values = c("MLB" = 21, "MM15" = 22, "MM110" = 24),
+                      labels = c("Estuary", "Near",  "Off")) + 
+  scale_size_manual(name = "fraction", breaks = c("B","E"), 
+                     labels = c("Free","Particle"),
+                     values = c("B" = 1, "E" = 2)) +
+  scale_fill_manual(name = "depth", breaks = c("D Sp", "D Su", "D Fa", "M Su", "S Sp", "S Su", "S Fa"), 
+                     labels = c("Deep","Deep","Deep", "Chla max", "Surface", "Surface", "Surface"),
+                     values = c("D Fa" = "mediumblue", "D Sp" = "darkgreen", "D Su" = "red", "M Su" = "orange", "S Sp" = "white", "S Su" = "white", "S Fa" = "white")) +
+  scale_x_discrete(breaks=c("MLB Sp", "MM15 Sp", "MM110 Sp","MLB Su", "MM15 Su", "MM110 Su","MLB Fa", "MM15 Fa", "MM110 Fa"),
+                   labels=c("MLB Sp", "MM15 Sp", "MM110 Sp","MLB Su", "MM15 Su", "MM110 Su","MLB Fa", "MM15 Fa", "MM110 Fa")) +   xlab("") + ylab("") + theme_bw() + 
+  theme(plot.title = element_text(face="bold", size=7),  #Set the plot title
+                                 strip.text.x = element_blank(),  #Set the facet titles on x-axis 
+                                 strip.text.y = element_blank(),  #Set the facet titles on x-axis 
+                                 strip.background = element_blank(),  #Set the facet background to no background
+                                 axis.title.x = element_text(face="bold", size=7),  #Set the x-axis title
+                                 axis.title.y = element_text(face="bold", size=7),  #Set the y-axis title
+                                 axis.text.x = element_text(angle=0, colour = "black", 
+                                                            vjust=1, hjust = 0.5, size=7),  #Set the x-axis labels
+                                 axis.text.y = element_text(colour = "black", size=7),  #Set the y-axis labels
+                                 legend.title = element_text(size = 8, face="bold"),  #Set the legend title 
+                                 legend.text = element_text(size = 8),  #Set the legend text
+                                 legend.position="none", #Default the legend position to the right
+                                 plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")); even_Stat_Seas_boxplot #top, right, bottom, left
+dev.off()
+
+
+## 4. evenness differences based on Depth_C and Season
+#simps_even_off <- simps_even[simps_even$Station == "MM110" & simps_even$Season == "Su", ]
+
+even_Depth_Seas_KW <- kruskal.test(simps_even$mean ~ as.factor(simps_even$Depth_Seas)) 
+print(even_Depth_Seas_KW)  # show Kruskal Wallis result
+
+# Which samples are significantly different from each other?  
+even_Depth_Seas_KW_MC <- kruskalmc(simps_even$mean ~ as.factor(simps_even$Depth_Seas))  ## Defaults to P < 0.05
+print(even_Depth_Seas_KW_MC)
+
+# Test to find the letters to represent significance in a plot
+even_Depth_Seas_KW_test <- even_Depth_Seas_KW_MC$dif.com$difference # select logical vector
+names(even_Depth_Seas_KW_test) <- row.names(even_Depth_Seas_KW_MC$dif.com) # add comparison names
+
+# create a list with "homogenous groups" coded by letter
+even_Depth_Seas_KW_letters <- multcompLetters(even_Depth_Seas_KW_test, compare="<", threshold=0.05, 
+                                Letters=c(letters, LETTERS, "."), reversed = FALSE)
+
+#  Extract the values from the multcompLetters object
+even_Depth_Seas_KW_sigs_dataframe <-  data.frame(as.vector(names(even_Depth_Seas_KW_letters$Letters)), as.vector(even_Depth_Seas_KW_letters$Letters))
+colnames(even_Depth_Seas_KW_sigs_dataframe) <- c("Depth_Seas", "siglabel")
+even_Depth_Seas_KW_try <- merge(simps_even, even_Depth_Seas_KW_sigs_dataframe, by = "Depth_Seas")
+
+even_Depth_Seas_KW_try$Depth_Seas <-factor(even_Depth_Seas_KW_try$Depth_Seas,levels=c( "S Sp", "S Su", "S Fa", "M Su", "D Sp", "D Su", "D Fa"))
+
+even_Depth_Seas_KW_sigs <- even_Depth_Seas_KW_try %>%
+  select(Depth_Seas, Depth_Seas, siglabel) %>%
+  distinct()
+
+# finally, the plot
+alpha_title <- paste("evenness when rarefied at",min(sample_sums(physeq_dupmerge)),"reads")
+even_Depth_Seas_KW_try$Fraction <- factor(even_Depth_Seas_KW_try$Fraction,levels=c("B","E"))
+even_Depth_Seas_KW_try$Season <- factor(even_Depth_Seas_KW_try$Season,levels=c("Sp","Su","Fa"))
+even_Depth_Seas_KW_try$Station <- factor(even_Depth_Seas_KW_try$Station,levels=c("MLB","MM15","MM110"))
+even_Depth_Seas_KW_try$Depth_C <- factor(even_Depth_Seas_KW_try$Depth_C,levels=c("S","M","D"))
+
+pdf(file="Figures/Rplot_evenness_Depth_Seas_boxplot.pdf", width= 5, height=5, pointsize= 8)
+even_Depth_Seas_boxplot <- ggplot(even_Depth_Seas_KW_try, aes(x = Depth_Seas, y = mean))  +
+  geom_boxplot(aes(color=Season),outlier.size = 0)  + ggtitle("") +
+  geom_point(aes(color=Season,shape = Station,size = Fraction,fill=Depth_Seas), position = position_dodge(0.8)) +
+  geom_text(data = even_Depth_Seas_KW_sigs, aes(label = siglabel, x = Depth_Seas, y = 0), size = 2) +
+  scale_color_manual(name = "season", breaks = c("Sp","Su","Fa"),values = c("Sp" = "darkgreen", "Su" = "red", "Fa" = "mediumblue"),labels = c("Spring",  "Summer", "Fall")) +
+  scale_shape_manual(name = "station", values = c("MLB" = 21, "MM15" = 22, "MM110" = 24),
+                      labels = c("Estuary", "Near",  "Off")) + 
+  scale_size_manual(name = "fraction", breaks = c("B","E"), 
+                     labels = c("Free","Particle"),
+                     values = c("B" = 1, "E" = 2)) +
+  scale_fill_manual(name = "depth", breaks = c("D Sp", "D Su", "D Fa", "M Su", "S Sp", "S Su", "S Fa"), 
+                     labels = c("Deep","Deep","Deep", "Chla max", "Surface", "Surface", "Surface"),
+                     values = c("D Fa" = "mediumblue", "D Sp" = "darkgreen", "D Su" = "red", "M Su" = "orange", "S Sp" = "white", "S Su" = "white", "S Fa" = "white")) +
+  scale_x_discrete(breaks=c("S Sp", "S Su", "S Fa", "M Su", "D Sp", "D Su", "D Fa"),
+                   labels=c("S Sp", "S Su", "S Fa", "M Su", "D Sp", "D Su", "D Fa")) + 
+  xlab("") + ylab("") + theme_bw() + 
+  theme(plot.title = element_text(face="bold", size=7),  #Set the plot title
+                                 strip.text.x = element_blank(),  #Set the facet titles on x-axis 
+                                 strip.text.y = element_blank(),  #Set the facet titles on x-axis 
+                                 strip.background = element_blank(),  #Set the facet background to no background
+                                 axis.title.x = element_text(face="bold", size=7),  #Set the x-axis title
+                                 axis.title.y = element_text(face="bold", size=7),  #Set the y-axis title
+                                 axis.text.x = element_text(angle=0, colour = "black", 
+                                                            vjust=1, hjust = 0.5, size=7),  #Set the x-axis labels
+                                 axis.text.y = element_text(colour = "black", size=7),  #Set the y-axis labels
+                                 legend.title = element_text(size = 8, face="bold"),  #Set the legend title 
+                                 legend.text = element_text(size = 8),  #Set the legend text
+                                 legend.position="none", #Default the legend position to the right
+                                 plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")); even_Depth_Seas_boxplot #top, right, bottom, left
+dev.off()
+```
+
+```{r final figures}
+library(grid)
+library(gridExtra)
+
+pdf(file="Figures/Rplot_AlphaDiv_boxplot.pdf", width= 7, height=5, pointsize= 8, colormodel="cmyk", useDingbats = FALSE)
+grid.arrange(rich_Season_boxplot,rich_Station_boxplot,rich_Fraction_boxplot,rich_Depth_C_boxplot,even_Season_boxplot,even_Station_boxplot,even_Fraction_boxplot,even_Depth_C_boxplot,ncol=4)
+dev.off()
+
+pdf(file="Figures/Rplot_AlphaDiv_multifact_boxplot.pdf", width= 7, height=5, pointsize= 8, colormodel="cmyk", useDingbats = FALSE)
+grid.arrange(rich_Seas_Stat_boxplot,rich_Stat_Seas_boxplot,rich_Frac_Seas_boxplot,rich_Depth_Seas_boxplot,even_Seas_Stat_boxplot,even_Stat_Seas_boxplot,even_Frac_Seas_boxplot,even_Depth_Seas_boxplot,ncol=4)
+dev.off()
+```
+
+### Figure 3 + Table X: PCoA, PERMANOVA
 ```{r adonis}
 # Calculate bray curtis
 physeq.bray <- phyloseq::distance(physeq = physeq.scale, method = "bray")
@@ -812,9 +1526,9 @@ bray_axis2_DNA <- paste("PCoA2:",bray_rel_eigen2_percent_DNA,"%")
 bray_axis3_DNA <- paste("PCoA3:",bray_rel_eigen3_percent_DNA,"%")
 bray_axis4_DNA <- paste("PCoA4:",bray_rel_eigen4_percent_DNA,"%")
 
-PCoA_DNA_title <- paste("PCoA (Bray-Curtis distance) when considering",ntaxa(physeq.scale),"OTUs")
+PCoA_DNA_title <- paste("Bray-Curtis,",ntaxa(physeq.scale),"OTUs")
 
-pdf(file="Figures/Rplot_PCOA12_BC_DNA.pdf", width= 20, height=15, pointsize= 14)
+pdf(file="Figures/Rplot_PCOA12_BC_DNA.pdf", width= 20, height=15, pointsize= 8)
 pcoa_BC12_DNA <- ggplot(physeq.pcoa.df, aes(Axis.1, Axis.2, color = Season, shape = Station, size = Fraction, fill = Depth_Seas)) +
   xlab(bray_axis1_DNA) + ylab(bray_axis2_DNA) + ggtitle(PCoA_DNA_title) +
   geom_point(alpha=0.9) + theme_bw() + #ylim(1, -1) + xlim(1, -1) +
@@ -826,21 +1540,22 @@ pcoa_BC12_DNA <- ggplot(physeq.pcoa.df, aes(Axis.1, Axis.2, color = Season, shap
                      values = c("MLB" = 21, "MM15" = 22, "MM110" = 24)) +
   scale_size_manual(name = "fraction", breaks = c("E", "B"), 
                      labels = c("Particle", "Free"),
-                     values = c("B" = 5, "E" = 10)) +
+                     values = c("B" = 1, "E" = 2)) +
   scale_fill_manual(name = "depth", breaks = c("D Sp", "D Su", "D Fa", "M Su", "S Sp", "S Su", "S Fa"), 
                      labels = c("Deep","Deep","Deep", "Chla max", "Surface", "Surface", "Surface"),
                      values = c("D Fa" = "mediumblue", "D Sp" = "darkgreen", "D Su" = "red", "M Su" = "orange", "S Sp" = "white", "S Su" = "white", "S Fa" = "white")) +
-  theme(axis.text.x = element_text(colour="black", vjust=0.5, size=14), 
-        axis.text.y = element_text(colour="black", vjust=0.5, size=14),
-        axis.title.x = element_text(face="bold", size=16),
-        axis.title.y = element_text(face="bold", size=16),
+  theme(plot.title = element_text(face="bold", size=8),  #Set the plot title
+        axis.text.x = element_text(colour="black", vjust=0.5, size=8), 
+        axis.text.y = element_text(colour="black", vjust=0.5, size=8),
+        axis.title.x = element_text(face="bold", size=8),
+        axis.title.y = element_text(face="bold", size=8),
         legend.title = element_text(size=12, face="bold"),
         legend.text = element_text(size = 12),
         ###LEGEND TOP RIGHT CORNER
-        legend.position = "right"); pcoa_BC12_DNA
+        legend.position = "none"); pcoa_BC12_DNA
   dev.off()
 
-pdf(file="Figures/Rplot_PCOA13_BC_DNA.pdf", width= 20, height=15, pointsize= 14)
+pdf(file="Figures/Rplot_PCOA13_BC_DNA.pdf", width= 20, height=15, pointsize= 8)
 pcoa_BC13_DNA <- ggplot(physeq.pcoa.df, aes(Axis.1, Axis.3, color = Season, shape = Station, size = Fraction, fill = Depth_Seas)) +
   xlab(bray_axis1_DNA) + ylab(bray_axis3_DNA) + ggtitle(PCoA_DNA_title) +
   geom_point(alpha=0.9) + theme_bw() + #ylim(1, -1) + xlim(1, -1) +
@@ -852,23 +1567,24 @@ pcoa_BC13_DNA <- ggplot(physeq.pcoa.df, aes(Axis.1, Axis.3, color = Season, shap
                      values = c("MLB" = 21, "MM15" = 22, "MM110" = 24)) +
   scale_size_manual(name = "fraction", breaks = c("E", "B"), 
                      labels = c("Particle", "Free"),
-                     values = c("B" = 5, "E" = 10)) +
+                     values = c("B" = 1, "E" = 2)) +
   scale_fill_manual(name = "depth", breaks = c("D Sp", "D Su", "D Fa", "M Su", "S Sp", "S Su", "S Fa"), 
                      labels = c("Deep","Deep","Deep", "Chla max", "Surface", "Surface", "Surface"),
                      values = c("D Fa" = "mediumblue", "D Sp" = "darkgreen", "D Su" = "red", "M Su" = "orange", "S Sp" = "white", "S Su" = "white", "S Fa" = "white")) +
-  theme(axis.text.x = element_text(colour="black", vjust=0.5, size=14), 
-        axis.text.y = element_text(colour="black", vjust=0.5, size=14),
-        axis.title.x = element_text(face="bold", size=16),
-        axis.title.y = element_text(face="bold", size=16),
+  theme(plot.title = element_text(face="bold", size=8),  #Set the plot title
+        axis.text.x = element_text(colour="black", vjust=0.5, size=8), 
+        axis.text.y = element_text(colour="black", vjust=0.5, size=8),
+        axis.title.x = element_text(face="bold", size=8),
+        axis.title.y = element_text(face="bold", size=8),
         legend.title = element_text(size=12, face="bold"),
         legend.text = element_text(size = 12),
         ###LEGEND TOP RIGHT CORNER
-        legend.position = "right"); pcoa_BC13_DNA
+        legend.position = "none"); pcoa_BC13_DNA
   dev.off()
 
 ```
 
-```{r pcoa Sørensen after removal of OTU < 0.01% on average}
+```{r pcoa bray curtis after removal otu <0.01% on average}
 # Prune out rare taxa
 # Keep OTUs above average relative abundance of 7 reads (0.01%)
 a <- apply(otu_table(physeq.scale), MARGIN = 1, function(x) {mean(x)} )
@@ -876,10 +1592,98 @@ keep <- a > 7
 physeq.prune <- prune_taxa(keep, physeq.scale)
 ntaxa(physeq.prune) 
 
+# Betadiv pcoa Bray-Curtis DNA only 
+physeq.pcoa.prune <-
+  ordinate(
+    physeq = physeq.prune,
+    method = "PCoA",
+    distance = "bray"
+  )
+
+physeq.pcoa.prune.vectors <- data.frame(physeq.pcoa.prune$vectors[, 1:4])
+physeq.pcoa.prune.vectors$Duplicates <- row.names(physeq.pcoa.prune.vectors)
+physeq.pcoa.prune.df <- merge(physeq.pcoa.prune.vectors,data.frame(duplicate_metadata),by="Duplicates")
+for(i in 1:length(physeq.pcoa.prune.df$Season)){
+  physeq.pcoa.prune.df$Depth_Seas[i]<-paste(as.character(physeq.pcoa.prune.df$Depth_C[i]),
+                                  as.character(physeq.pcoa.prune.df$Season[i]))}
+bray_values_DNA <- physeq.pcoa.prune$values
+bray_rel_eigens_DNA <- bray_values_DNA$Relative_eig
+bray_rel_eigen1_DNA <- bray_rel_eigens_DNA[1]
+bray_rel_eigen1_percent_DNA <- round(bray_rel_eigen1_DNA * 100, digits = 1)
+bray_rel_eigen2_DNA <- bray_rel_eigens_DNA[2]
+bray_rel_eigen2_percent_DNA <- round(bray_rel_eigen2_DNA * 100, digits = 1)
+bray_rel_eigen3_DNA <- bray_rel_eigens_DNA[3]
+bray_rel_eigen3_percent_DNA <- round(bray_rel_eigen3_DNA * 100, digits = 1)
+bray_rel_eigen4_DNA <- bray_rel_eigens_DNA[4]
+bray_rel_eigen4_percent_DNA <- round(bray_rel_eigen4_DNA * 100, digits = 1)
+bray_axis1_DNA <- paste("PCoA1:",bray_rel_eigen1_percent_DNA,"%")
+bray_axis2_DNA <- paste("PCoA2:",bray_rel_eigen2_percent_DNA,"%")
+bray_axis3_DNA <- paste("PCoA3:",bray_rel_eigen3_percent_DNA,"%")
+bray_axis4_DNA <- paste("PCoA4:",bray_rel_eigen4_percent_DNA,"%")
+
+PCoA_DNA_title <- paste("Bray-Curtis,",ntaxa(physeq.prune),"OTUs")
+
+pdf(file="Figures/Rplot_PCOA12_BC.PRUNE_DNA.pdf", width= 20, height=15, pointsize= 8)
+pcoa_BC12.PRUNE_DNA <- ggplot(physeq.pcoa.prune.df, aes(Axis.1, Axis.2, color = Season, shape = Station, size = Fraction, fill = Depth_Seas)) +
+  xlab(bray_axis1_DNA) + ylab(bray_axis2_DNA) + ggtitle(PCoA_DNA_title) +
+  geom_point(alpha=0.9) + theme_bw() + #ylim(1, -1) + xlim(1, -1) +
+  scale_color_manual(name = "season", breaks=c("Sp", "Su",  "Fa"),
+                     labels = c("Spring", "Summer",  "Fall"), 
+                     values = c("Fa" = "mediumblue", "Sp" = "darkgreen", "Su" = "red")) +
+  scale_shape_manual(name = "station", breaks = c("MLB", "MM15",  "MM110"), 
+                     labels = c("MLB", "M15",  "M110"),
+                     values = c("MLB" = 21, "MM15" = 22, "MM110" = 24)) +
+  scale_size_manual(name = "fraction", breaks = c("E", "B"), 
+                     labels = c("Particle", "Free"),
+                     values = c("B" = 1, "E" = 2)) +
+  scale_fill_manual(name = "depth", breaks = c("D Sp", "D Su", "D Fa", "M Su", "S Sp", "S Su", "S Fa"), 
+                     labels = c("Deep","Deep","Deep", "Chla max", "Surface", "Surface", "Surface"),
+                     values = c("D Fa" = "mediumblue", "D Sp" = "darkgreen", "D Su" = "red", "M Su" = "orange", "S Sp" = "white", "S Su" = "white", "S Fa" = "white")) +
+  theme(plot.title = element_text(face="bold", size=8),  #Set the plot title
+        axis.text.x = element_text(colour="black", vjust=0.5, size=8), 
+        axis.text.y = element_text(colour="black", vjust=0.5, size=8),
+        axis.title.x = element_text(face="bold", size=8),
+        axis.title.y = element_text(face="bold", size=8),
+        legend.title = element_text(size=12, face="bold"),
+        legend.text = element_text(size = 12),
+        ###LEGEND TOP RIGHT CORNER
+        legend.position = "none"); pcoa_BC12.PRUNE_DNA
+  dev.off()
+
+pdf(file="Figures/Rplot_PCOA13_BC_DNA.pdf", width= 20, height=15, pointsize= 8)
+pcoa_BC13.PRUNE_DNA <- ggplot(physeq.pcoa.prune.df, aes(Axis.1, Axis.3, color = Season, shape = Station, size = Fraction, fill = Depth_Seas)) +
+  xlab(bray_axis1_DNA) + ylab(bray_axis3_DNA) + ggtitle(PCoA_DNA_title) +
+  geom_point(alpha=0.9) + theme_bw() + #ylim(1, -1) + xlim(1, -1) +
+  scale_color_manual(name = "season", breaks=c("Sp", "Su",  "Fa"),
+                     labels = c("Spring", "Summer",  "Fall"), 
+                     values = c("Fa" = "mediumblue", "Sp" = "darkgreen", "Su" = "red")) +
+  scale_shape_manual(name = "station", breaks = c("MLB", "MM15",  "MM110"), 
+                     labels = c("MLB", "M15",  "M110"),
+                     values = c("MLB" = 21, "MM15" = 22, "MM110" = 24)) +
+  scale_size_manual(name = "fraction", breaks = c("E", "B"), 
+                     labels = c("Particle", "Free"),
+                     values = c("B" = 1, "E" = 2)) +
+  scale_fill_manual(name = "depth", breaks = c("D Sp", "D Su", "D Fa", "M Su", "S Sp", "S Su", "S Fa"), 
+                     labels = c("Deep","Deep","Deep", "Chla max", "Surface", "Surface", "Surface"),
+                     values = c("D Fa" = "mediumblue", "D Sp" = "darkgreen", "D Su" = "red", "M Su" = "orange", "S Sp" = "white", "S Su" = "white", "S Fa" = "white")) +
+  theme(plot.title = element_text(face="bold", size=8),  #Set the plot title
+        axis.text.x = element_text(colour="black", vjust=0.5, size=8), 
+        axis.text.y = element_text(colour="black", vjust=0.5, size=8),
+        axis.title.x = element_text(face="bold", size=8),
+        axis.title.y = element_text(face="bold", size=8),
+        legend.title = element_text(size=12, face="bold"),
+        legend.text = element_text(size = 12),
+        ###LEGEND TOP RIGHT CORNER
+        legend.position = "none"); pcoa_BC13.PRUNE_DNA
+  dev.off()
+
+```
+
+```{r pcoa Sørensen}
 # Betadiv pcoa Sørensen DNA only 
 physeq.pcoa.sor <-
   ordinate(
-    physeq = physeq.prune,
+    physeq = physeq.scale,
     method = "PCoA",
     distance = "bray",
     binary = TRUE
@@ -906,9 +1710,9 @@ sor_axis2_DNA <- paste("PCoA2:",sor_rel_eigen2_percent_DNA,"%")
 sor_axis3_DNA <- paste("PCoA3:",sor_rel_eigen3_percent_DNA,"%")
 sor_axis4_DNA <- paste("PCoA4:",sor_rel_eigen4_percent_DNA,"%")
 
-PCoA_Sor_DNA_title <- paste("PCoA (Sørensen distance) when considering",ntaxa(physeq.prune),"OTUs")
+PCoA_Sor_DNA_title <- paste("Sørensen,",ntaxa(physeq.scale),"OTUs")
 
-pdf(file="Figures/Rplot_PCOA12_SOR_DNA.pdf", width= 20, height=15, pointsize= 14)
+pdf(file="Figures/Rplot_PCOA12_SOR_DNA.pdf", width= 20, height=15, pointsize= 8)
 pcoa_SOR12_DNA <- ggplot(physeq.pcoa.sor.df, aes(-Axis.1, -Axis.2, color = Season, shape = Station, size = Fraction, fill = Depth_Seas)) +
   xlab(sor_axis1_DNA) + ylab(sor_axis2_DNA) + ggtitle(PCoA_Sor_DNA_title) +
   geom_point(alpha=0.9) + theme_bw() + #ylim(1, -1) + xlim(1, -1) +
@@ -920,21 +1724,22 @@ pcoa_SOR12_DNA <- ggplot(physeq.pcoa.sor.df, aes(-Axis.1, -Axis.2, color = Seaso
                      values = c("MLB" = 21, "MM15" = 22, "MM110" = 24)) +
   scale_size_manual(name = "fraction", breaks = c("E", "B"), 
                      labels = c("Particle", "Free"),
-                     values = c("B" = 5, "E" = 10)) +
+                     values = c("B" = 1, "E" = 2)) +
   scale_fill_manual(name = "depth", breaks = c("D Sp", "D Su", "D Fa", "M Su", "S Sp", "S Su", "S Fa"), 
                      labels = c("Deep","Deep","Deep", "Chla max", "Surface", "Surface", "Surface"),
                      values = c("D Fa" = "mediumblue", "D Sp" = "darkgreen", "D Su" = "red", "M Su" = "orange", "S Sp" = "white", "S Su" = "white", "S Fa" = "white")) +
-  theme(axis.text.x = element_text(colour="black", vjust=0.5, size=14), 
-        axis.text.y = element_text(colour="black", vjust=0.5, size=14),
-        axis.title.x = element_text(face="bold", size=16),
-        axis.title.y = element_text(face="bold", size=16),
+  theme(plot.title = element_text(face="bold", size=8),  #Set the plot title
+        axis.text.x = element_text(colour="black", vjust=0.5, size=8), 
+        axis.text.y = element_text(colour="black", vjust=0.5, size=8),
+        axis.title.x = element_text(face="bold", size=8),
+        axis.title.y = element_text(face="bold", size=8),
         legend.title = element_text(size=12, face="bold"),
         legend.text = element_text(size = 12),
         ###LEGEND TOP RIGHT CORNER
-        legend.position = "right"); pcoa_SOR12_DNA
+        legend.position = "none"); pcoa_SOR12_DNA
   dev.off()
 
-pdf(file="Figures/Rplot_PCOA13_SOR_DNA.pdf", width= 20, height=15, pointsize= 14)
+pdf(file="Figures/Rplot_PCOA13_SOR_DNA.pdf", width= 20, height=15, pointsize= 8)
 pcoa_SOR13_DNA <- ggplot(physeq.pcoa.sor.df, aes(-Axis.1, -Axis.3, color = Season, shape = Station, size = Fraction, fill = Depth_Seas)) +
   xlab(sor_axis1_DNA) + ylab(sor_axis3_DNA) + ggtitle(PCoA_Sor_DNA_title) +
   geom_point(alpha=0.9) + theme_bw() + #ylim(1, -1) + xlim(1, -1) +
@@ -946,21 +1751,132 @@ pcoa_SOR13_DNA <- ggplot(physeq.pcoa.sor.df, aes(-Axis.1, -Axis.3, color = Seaso
                      values = c("MLB" = 21, "MM15" = 22, "MM110" = 24)) +
   scale_size_manual(name = "fraction", breaks = c("E", "B"), 
                      labels = c("Particle", "Free"),
-                     values = c("B" = 5, "E" = 10)) +
+                     values = c("B" = 1, "E" = 2)) +
   scale_fill_manual(name = "depth", breaks = c("D Sp", "D Su", "D Fa", "M Su", "S Sp", "S Su", "S Fa"), 
                      labels = c("Deep","Deep","Deep", "Chla max", "Surface", "Surface", "Surface"),
                      values = c("D Fa" = "mediumblue", "D Sp" = "darkgreen", "D Su" = "red", "M Su" = "orange", "S Sp" = "white", "S Su" = "white", "S Fa" = "white")) +
-  theme(axis.text.x = element_text(colour="black", vjust=0.5, size=14), 
-        axis.text.y = element_text(colour="black", vjust=0.5, size=14),
-        axis.title.x = element_text(face="bold", size=16),
-        axis.title.y = element_text(face="bold", size=16),
+  theme(plot.title = element_text(face="bold", size=8),  #Set the plot title
+        axis.text.x = element_text(colour="black", vjust=0.5, size=8), 
+        axis.text.y = element_text(colour="black", vjust=0.5, size=8),
+        axis.title.x = element_text(face="bold", size=8),
+        axis.title.y = element_text(face="bold", size=8),
         legend.title = element_text(size=12, face="bold"),
         legend.text = element_text(size = 12),
         ###LEGEND TOP RIGHT CORNER
-        legend.position = "right"); pcoa_SOR13_DNA
+        legend.position = "none"); pcoa_SOR13_DNA
   dev.off()
 
 ```
+
+```{r pcoa Sørensen after removal of OTU < 0.01% on average}
+# Prune out rare taxa
+# Keep OTUs above average relative abundance of 7 reads (0.01%)
+a <- apply(otu_table(physeq.scale), MARGIN = 1, function(x) {mean(x)} )
+keep <- a > 7
+physeq.prune <- prune_taxa(keep, physeq.scale)
+ntaxa(physeq.prune) 
+
+# Betadiv pcoa Sørensen DNA only 
+physeq.pcoa.prune.sor <-
+  ordinate(
+    physeq = physeq.prune,
+    method = "PCoA",
+    distance = "bray",
+    binary = TRUE
+  )
+
+physeq.pcoa.prune.sor.vectors <- data.frame(physeq.pcoa.prune.sor$vectors[, 1:4])
+physeq.pcoa.prune.sor.vectors$Duplicates <- row.names(physeq.pcoa.prune.sor.vectors)
+physeq.pcoa.prune.sor.df <- merge(physeq.pcoa.prune.sor.vectors,data.frame(duplicate_metadata),by="Duplicates")
+for(i in 1:length(physeq.pcoa.prune.sor.df$Season)){
+  physeq.pcoa.prune.sor.df$Depth_Seas[i]<-paste(as.character(physeq.pcoa.prune.sor.df$Depth_C[i]),
+                                  as.character(physeq.pcoa.prune.sor.df$Season[i]))}
+sor_values_DNA <- physeq.pcoa.prune.sor$values
+sor_rel_eigens_DNA <- sor_values_DNA$Relative_eig
+sor_rel_eigen1_DNA <- sor_rel_eigens_DNA[1]
+sor_rel_eigen1_percent_DNA <- round(sor_rel_eigen1_DNA * 100, digits = 1)
+sor_rel_eigen2_DNA <- sor_rel_eigens_DNA[2]
+sor_rel_eigen2_percent_DNA <- round(sor_rel_eigen2_DNA * 100, digits = 1)
+sor_rel_eigen3_DNA <- sor_rel_eigens_DNA[3]
+sor_rel_eigen3_percent_DNA <- round(sor_rel_eigen3_DNA * 100, digits = 1)
+sor_rel_eigen4_DNA <- sor_rel_eigens_DNA[4]
+sor_rel_eigen4_percent_DNA <- round(sor_rel_eigen4_DNA * 100, digits = 1)
+sor_axis1_DNA <- paste("PCoA1:",sor_rel_eigen1_percent_DNA,"%")
+sor_axis2_DNA <- paste("PCoA2:",sor_rel_eigen2_percent_DNA,"%")
+sor_axis3_DNA <- paste("PCoA3:",sor_rel_eigen3_percent_DNA,"%")
+sor_axis4_DNA <- paste("PCoA4:",sor_rel_eigen4_percent_DNA,"%")
+
+PCoA_Sor_DNA_title <- paste("Sørensen,",ntaxa(physeq.prune),"OTUs")
+
+pdf(file="Figures/Rplot_PCOA12_SOR.PRUNE_DNA.pdf", width= 20, height=15, pointsize= 8)
+pcoa_SOR12.PRUNE_DNA <- ggplot(physeq.pcoa.prune.sor.df, aes(-Axis.1, -Axis.2, color = Season, shape = Station, size = Fraction, fill = Depth_Seas)) +
+  xlab(sor_axis1_DNA) + ylab(sor_axis2_DNA) + ggtitle(PCoA_Sor_DNA_title) +
+  geom_point(alpha=0.9) + theme_bw() + #ylim(1, -1) + xlim(1, -1) +
+  scale_color_manual(name = "season", breaks=c("Sp", "Su",  "Fa"),
+                     labels = c("Spring", "Summer",  "Fall"), 
+                     values = c("Fa" = "mediumblue", "Sp" = "darkgreen", "Su" = "red")) +
+  scale_shape_manual(name = "station", breaks = c("MLB", "MM15",  "MM110"), 
+                     labels = c("MLB", "M15",  "M110"),
+                     values = c("MLB" = 21, "MM15" = 22, "MM110" = 24)) +
+  scale_size_manual(name = "fraction", breaks = c("E", "B"), 
+                     labels = c("Particle", "Free"),
+                     values = c("B" = 1, "E" = 2)) +
+  scale_fill_manual(name = "depth", breaks = c("D Sp", "D Su", "D Fa", "M Su", "S Sp", "S Su", "S Fa"), 
+                     labels = c("Deep","Deep","Deep", "Chla max", "Surface", "Surface", "Surface"),
+                     values = c("D Fa" = "mediumblue", "D Sp" = "darkgreen", "D Su" = "red", "M Su" = "orange", "S Sp" = "white", "S Su" = "white", "S Fa" = "white")) +
+  theme(plot.title = element_text(face="bold", size=8),  #Set the plot title
+        axis.text.x = element_text(colour="black", vjust=0.5, size=8), 
+        axis.text.y = element_text(colour="black", vjust=0.5, size=8),
+        axis.title.x = element_text(face="bold", size=8),
+        axis.title.y = element_text(face="bold", size=8),
+        legend.title = element_text(size=12, face="bold"),
+        legend.text = element_text(size = 12),
+        ###LEGEND TOP RIGHT CORNER
+        legend.position = "none"); pcoa_SOR12.PRUNE_DNA
+  dev.off()
+
+pdf(file="Figures/Rplot_PCOA13_SOR.PRUNE_DNA.pdf", width= 20, height=15, pointsize= 8)
+pcoa_SOR13.PRUNE_DNA <- ggplot(physeq.pcoa.prune.sor.df, aes(-Axis.1, -Axis.3, color = Season, shape = Station, size = Fraction, fill = Depth_Seas)) +
+  xlab(sor_axis1_DNA) + ylab(sor_axis3_DNA) + ggtitle(PCoA_Sor_DNA_title) +
+  geom_point(alpha=0.9) + theme_bw() + #ylim(1, -1) + xlim(1, -1) +
+  scale_color_manual(name = "season", breaks=c("Sp", "Su",  "Fa"),
+                     labels = c("Spring", "Summer",  "Fall"), 
+                     values = c("Fa" = "mediumblue", "Sp" = "darkgreen", "Su" = "red")) +
+  scale_shape_manual(name = "station", breaks = c("MLB", "MM15",  "MM110"), 
+                     labels = c("MLB", "M15",  "M110"),
+                     values = c("MLB" = 21, "MM15" = 22, "MM110" = 24)) +
+  scale_size_manual(name = "fraction", breaks = c("E", "B"), 
+                     labels = c("Particle", "Free"),
+                     values = c("B" = 1, "E" = 2)) +
+  scale_fill_manual(name = "depth", breaks = c("D Sp", "D Su", "D Fa", "M Su", "S Sp", "S Su", "S Fa"), 
+                     labels = c("Deep","Deep","Deep", "Chla max", "Surface", "Surface", "Surface"),
+                     values = c("D Fa" = "mediumblue", "D Sp" = "darkgreen", "D Su" = "red", "M Su" = "orange", "S Sp" = "white", "S Su" = "white", "S Fa" = "white")) +
+  theme(plot.title = element_text(face="bold", size=8),  #Set the plot title
+        axis.text.x = element_text(colour="black", vjust=0.5, size=8), 
+        axis.text.y = element_text(colour="black", vjust=0.5, size=8),
+        axis.title.x = element_text(face="bold", size=8),
+        axis.title.y = element_text(face="bold", size=8),
+        legend.title = element_text(size=12, face="bold"),
+        legend.text = element_text(size = 12),
+        ###LEGEND TOP RIGHT CORNER
+        legend.position = "none"); pcoa_SOR13.PRUNE_DNA
+  dev.off()
+
+```
+
+```{r final figures}
+library(grid)
+library(gridExtra)
+
+pdf(file="Figures/Rplot_BetaDiv_pcoa.pdf", width= 7, height=3.5, pointsize= 8, colormodel="cmyk", useDingbats = FALSE)
+grid.arrange(pcoa_BC12_DNA,pcoa_SOR12_DNA,ncol=2)
+dev.off()
+
+pdf(file="Figures/Rplot_BetaDiv_0.01_pcoa.pdf", width= 7, height=3.5, pointsize= 8, colormodel="cmyk", useDingbats = FALSE)
+grid.arrange(pcoa_BC12.PRUNE_DNA,pcoa_SOR12.PRUNE_DNA,ncol=2)
+dev.off()
+```
+
 
 ##Figure 3: cyano, mixo, hetero
 ```{r barplots}
@@ -1128,7 +2044,7 @@ deseq_otu_DNAcDNA_FL_raw$Phylum_plot <- Phylum_temp
 
 deseq_otu_DNAcDNA_FLandPA_raw<-rbind(deseq_otu_DNAcDNA_FL_raw,deseq_otu_DNAcDNA_PA_raw)
 
-pdf(file="Figures/Rplot_cDvsD_FL_noscale_top200.pdf", width= 10, height=15, pointsize= 14, useDingbats=FALSE)
+pdf(file="Figures/Rplot_cDvsD_FL_noscale_top200.pdf", width= 10, height=15, pointsize= 8, useDingbats=FALSE)
 deseq_otu_DNAcDNA_FLandPA_raw$Phylum_plot <-factor(deseq_otu_DNAcDNA_FLandPA_raw$Phylum_plot,levels=c("Proteobacteria FL","Proteobacteria PA","Alphaproteobacteria FL","Alphaproteobacteria PA","Betaproteobacteria FL","Betaproteobacteria PA","Gammaproteobacteria FL","Gammaproteobacteria PA","Deltaproteobacteria FL","Deltaproteobacteria PA","Bacteroidetes FL","Bacteroidetes PA","Cytophagia FL","Cytophagia PA","Flavobacteria FL","Flavobacteria PA","Sphingobacteria FL","Sphingobacteria PA","Actinobacteria FL","Actinobacteria PA","Cyanobacteria FL","Cyanobacteria PA","Verrucomicrobia FL","Verrucomicrobia PA","Planctomycetes FL","Planctomycetes PA","Chloroflexi FL","Chloroflexi PA","Acidobacteria FL","Acidobacteria PA","Armatimonadetes FL","Armatimonadetes PA","Chlorobi FL","Chlorobi PA","Firmicutes FL","Firmicutes PA","Gemmatimonadetes FL","Gemmatimonadetes PA","unclassified FL","unclassified PA"))
 deseq_otu_DNAcDNA_plot_FLandPA_raw <- plot_deSEQ_combo(deseq_otu_DNAcDNA_FLandPA_raw, "OTU cDNA:DNA FL and PA samples")
 deseq_otu_DNAcDNA_plot_FLandPA_raw
@@ -1482,10 +2398,10 @@ euc_frac_sigs <- euc_frac_try %>%
   distinct()
 
 # plot
-pdf(file="Figures/Rplot_cDD_euc_frac_boxplot_toptaxa.pdf", width= 5, height=5, pointsize= 14)
+pdf(file="Figures/Rplot_cDD_euc_frac_boxplot_toptaxa.pdf", width= 5, height=5, pointsize= 8)
 euc_frac_boxplot <- ggplot(euc_frac_try, aes(x = compfrac, y = value, fill = compfrac)) + geom_point(size = 2) +
   geom_boxplot() +
-  geom_text(data = euc_frac_sigs, aes(label = siglabel, x = compfrac, y = 25), size = 4) +
+  geom_text(data = euc_frac_sigs, aes(label = siglabel, x = compfrac, y = 25), size = 2) +
   scale_fill_manual(name = "", limits=c("Sp_FLvsPA", "Su_FLvsPA", "Fa_FLvsPA"), 
                      values = c("Sp_FLvsPA" = "grey","Su_FLvsPA" = "grey","Fa_FLvsPA" = "grey"))+
   scale_x_discrete(breaks=c("Sp_FLvsPA", "Su_FLvsPA", "Fa_FLvsPA"),
