@@ -1466,8 +1466,15 @@ dev.off()
 
 ### Figure 3 + Table X: PCoA, PERMANOVA
 ```{r adonis}
+# Prune out rare taxa
+# Keep OTUs above average relative abundance of 7 reads (0.01%)
+a <- apply(otu_table(physeq.scale), MARGIN = 1, function(x) {mean(x)} )
+keep <- a > 7
+physeq.prune <- prune_taxa(keep, physeq.scale)
+ntaxa(physeq.prune) 
+
 # Calculate bray curtis
-physeq.bray <- phyloseq::distance(physeq = physeq.scale, method = "bray")
+physeq.bray <- phyloseq::distance(physeq = physeq.prune, method = "bray")
 
 ### Let's run ADONIS using Michelle Berry's MicrobeMiseq function --- FOR TABLE 2
 phyloseq_to_adonis(physeq.scale, distmat = physeq.bray, dist = "bray","Fraction")
@@ -1478,13 +1485,6 @@ phyloseq_to_adonis(physeq.scale, distmat = physeq.bray, dist = "bray","DayNight"
 phyloseq_to_adonis(physeq.scale, distmat = physeq.bray, dist = "bray","Lake")
 formula<-c("Fraction","Season","Lake","Station","Depth_C","DayNight")
 phyloseq_to_adonis(physeq.scale, distmat = physeq.bray, dist = "bray",formula)
-
-# Prune out rare taxa
-# Keep OTUs above average relative abundance of 7 reads (0.01%)
-a <- apply(otu_table(physeq.scale), MARGIN = 1, function(x) {mean(x)} )
-keep <- a > 7
-physeq.prune <- prune_taxa(keep, physeq.scale)
-ntaxa(physeq.prune) 
 
 # Calculate Sorensen
 physeq.sor <- phyloseq::distance(physeq = physeq.prune, method = "bray", binary=TRUE)
@@ -2738,44 +2738,102 @@ non.abund <- filter(sigtab.invaded, log2FoldChange > 0)
 kable(x = non.abund)
 ```
 
-##BIOENV analysis
+##BIOENV analysis --- perhaps remove Day vs night samples as too similar + remove autocorrelated vars
 ```{r bioenv analysis}
-table_env <- read.table("Input_data/bioenv_envdata.txt",sep="\t",header=T,row.names=1,as.is=T)
-table_env_sqrt <- sqrt(table_env)
 physeq_dupmerge.prune.envsub <-subset_samples(physeq_dupmerge.prune,Duplicates=="Sp13.ED.MM15.SD.1"|Duplicates=="Sp13.ED.MM110.SD.1"|Duplicates=="Sp13.ED.MM110.SN.1"|Duplicates=="Sp13.ED.MM15.SN.1"|Duplicates=="Su13.ED.MM15.SN.1"|Duplicates=="Su13.ED.MM15.SD.1"|Duplicates=="Su13.ED.MM110.DCMD.1"|Duplicates=="Su13.ED.MM110.SD.1"|Duplicates=="Su13.ED.MM110.SN.1"|Duplicates=="Fa13.ED.MM15.SN.1"|Duplicates=="Fa13.ED.MM15.SD.1"|Duplicates=="Fa13.ED.MM110.DN.1"|Duplicates=="Fa13.ED.MM110.SD.1"|Duplicates=="Fa13.ED.MM110.SN.1"|Duplicates=="Sp13.BD.MM15.SD.1"|Duplicates=="Sp13.BD.MM110.SD.1"|Duplicates=="Sp13.BD.MM110.SN.1"|Duplicates=="Sp13.BD.MM15.SN.1"|Duplicates=="Su13.BD.MM15.SN.1"|Duplicates=="Su13.BD.MM15.SD.1"|Duplicates=="Su13.BD.MM110.DCMD.1"|Duplicates=="Su13.BD.MM110.DN.1"|Duplicates=="Su13.BD.MM110.SD.1"|Duplicates=="Su13.BD.MM110.SN.1"|Duplicates=="Fa13.BD.MM15.SN.1"|Duplicates=="Fa13.BD.MM15.SD.1"|Duplicates=="Fa13.BD.MM110.DN.1"|Duplicates=="Fa13.BD.MM110.SD.1"|Duplicates=="Fa13.BD.MM110.SN.1")
 
 table_bio <- data.frame(t(otu_table(physeq_dupmerge.prune.envsub)))
 table_bio_PA <- data.frame(t(otu_table(subset_samples(physeq_dupmerge.prune.envsub,Fraction=="E"))))
 table_bio_FL <- data.frame(t(otu_table(subset_samples(physeq_dupmerge.prune.envsub,Fraction=="B"))))
 
+table_env <- read.table("Input_data/bioenv_envdata.txt",sep="\t",header=T,row.names=1,as.is=T)
 table_env_PA <- read.table("Input_data/bioenv_envdata_PA.txt",sep="\t",header=T,row.names=1,as.is=T)
-table_env_PA_sqrt <- sqrt(table_env_PA)
 table_env_FL <- read.table("Input_data/bioenv_envdata_FL.txt",sep="\t",header=T,row.names=1,as.is=T)
-table_env_FL_sqrt <- sqrt(table_env_FL)
 
-bioenv(table_bio, table_env_sqrt, method = "spearman", index = "bray", trace = TRUE, partial = NULL)
-bioenv(table_bio_PA, table_env_PA_sqrt, method = "spearman", index = "bray", trace = TRUE, partial = NULL)
-bioenv_FL <- bioenv(table_bio_FL, table_env_FL_sqrt, method = "spearman", index = "bray", trace = TRUE, partial = NULL)
-summary(bioenv_FL)
+#testing normality of environmental data - log transform all with p<0.01
+shapiro.test(table_env_FL$T) #p=0.04
+shapiro.test(table_env_FL$DO) #p=0.01
+shapiro.test(table_env_FL$Chla) #p=0.002
+shapiro.test(table_env_FL$TP) #p=0.000006
+shapiro.test(table_env_FL$POC) #p=0.16
+shapiro.test(table_env_FL$PON) #p=0.23
+shapiro.test(table_env_FL$DOC) #p=0.0001
+shapiro.test(table_env_FL$SiO2) #p=0.03
+shapiro.test(table_env_FL$TSS) #p=0.000006
+shapiro.test(table_env_FL$PAR) #p=0.000006
+
+#run bioenv test
+bioenv_all <- bioenv(table_bio ~T+DO+log(Chla)+log(TP)+POC+PON+log(DOC)+SiO2+log(TSS)+log(PAR), table_env, method = "spearman", index = "bray", trace = TRUE, partial = NULL)
+bioenv_PA <- bioenv(table_bio_PA ~T+DO+log(Chla)+log(TP)+POC+PON+log(DOC)+SiO2+log(TSS)+log(PAR), table_env_PA, method = "spearman", index = "bray", trace = TRUE, partial = NULL)
+bioenv_FL <- bioenv(table_bio_FL ~T+DO+log(Chla)+log(TP)+POC+PON+log(DOC)+SiO2+log(TSS)+log(PAR), table_env_FL, method = "spearman", index = "bray", trace = TRUE, partial = NULL)
+
+summary(bioenv_FL) # T log(Chla) SiO2 r=0.7557, best factor is Chla with r=0.64       --- p<0.01
+summary(bioenv_PA) #T log(TSS) r=0.7718, best factor is T with r=0.62                 --- p<0.01
+summary(bioenv_all) #T DO log(Chla) log(DOC) r=0.1421, best factor is DO with r=0.12  --- p=0.26
+
+#testing PA with best model parameters for FL and vice versa
+bioenv(table_bio_PA ~T+log(Chla)+SiO2, table_env_PA, method = "spearman", index = "bray", trace = TRUE, partial = NULL)
+#T log(Chla) with r=0.69
+bioenv(table_bio_PA ~log(Chla), table_env_PA, method = "spearman", index = "bray", trace = TRUE, partial = NULL)
+#r = 0.38
+
+bioenv(table_bio_FL ~T+log(TSS), table_env_FL, method = "spearman", index = "bray", trace = TRUE, partial = NULL)
+#T log(TSS) with r=0.66
+bioenv(table_bio_FL ~T, table_env_FL, method = "spearman", index = "bray", trace = TRUE, partial = NULL)
+#r = 0.45
+
+#performing random permutations of row names to get p value for correlation FL
 x <- 0
 result <- vector(mode = "numeric", length = 100)
 while (x < 100){
-	table_bio_rand<-table_bio[sample(1:nrow(table_bio_PA)),] 
+	table_bio_rand<-table_bio[sample(1:nrow(table_bio_FL)),] 
 	x <- x + 1
-	bioenv_rand <- bioenv(table_bio_rand, table_env_PA_sqrt, method = "spearman", index = "bray", trace = TRUE, partial = NULL)
+	bioenv_rand <- bioenv(table_bio_rand ~T+DO+log(Chla)+log(TP)+POC+PON+log(DOC)+SiO2+log(TSS)+log(PAR), table_env_FL,  method = "spearman", index = "bray", trace = TRUE, partial = NULL)
 	tmp<-data.frame(summary(bioenv_rand)[2])
 	result[x]=max(tmp)
 	print(x)
 	}
 hist(result)
-print('mean')
-print(mean(result))
-print('max')
-print(max(result))
-print('quantiles')
-print(quantile(result,0.95))
-print(quantile(result,0.99))
+print(mean(result))#0.18
+print(max(result))#0.55
+print(quantile(result,0.95))#0.38
+print(quantile(result,0.99)) #0.50
 
+#performing random permutations of row names to get p value for correlation PA
+x <- 0
+result <- vector(mode = "numeric", length = 100)
+while (x < 100){
+	table_bio_rand<-table_bio[sample(1:nrow(table_bio_PA)),] 
+	x <- x + 1
+	bioenv_rand <- bioenv(table_bio_rand ~T+DO+log(Chla)+log(TP)+POC+PON+log(DOC)+SiO2+log(TSS)+log(PAR), table_env_PA,  method = "spearman", index = "bray", trace = TRUE, partial = NULL)
+	tmp<-data.frame(summary(bioenv_rand)[2])
+	result[x]=max(tmp)
+	print(x)
+	}
+hist(result)
+print(mean(result))#0.17
+print(max(result))#0.59
+print(quantile(result,0.95))#0.38
+print(quantile(result,0.99)) #0.53
+
+#performing random permutations of row names to get p value for correlation all
+x <- 0
+result <- vector(mode = "numeric", length = 100)
+while (x < 100){
+	table_bio_rand<-table_bio[sample(1:nrow(table_bio)),] 
+	x <- x + 1
+	bioenv_rand <- bioenv(table_bio_rand ~T+DO+log(Chla)+log(TP)+POC+PON+log(DOC)+SiO2+log(TSS)+log(PAR), table_env,  method = "spearman", index = "bray", trace = TRUE, partial = NULL)
+	tmp<-data.frame(summary(bioenv_rand)[2])
+	result[x]=max(tmp)
+	print(x)
+	}
+hist(result)
+print(mean(result))#0.10
+print(max(result))#0.36
+print(quantile(result,0.62))#0.1228
+print(quantile(result,0.74))#0.1421
+print(quantile(result,0.95))#0.22
+print(quantile(result,0.99)) #0.24
 
 ```
 
