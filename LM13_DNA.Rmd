@@ -2173,6 +2173,7 @@ bray_df$compdepth[bray_df$season1=="Fa"&bray_df$season2=="Su"&bray_df$depth1=="D
 bray_df$compdepth[bray_df$season1=="Fa"&bray_df$season2=="Su"&bray_df$depth1=="S"&bray_df$depth2=="D"]<-"Su-Fa_SurfvsDeep"
 bray_df$compdepth[bray_df$season1=="Fa"&bray_df$season2=="Su"&bray_df$depth1=="D"&bray_df$depth2=="S"]<-"Su-Fa_SurfvsDeep"
 
+
 #removing self comparisons and calculating average per group
 bray_df <- subset(bray_df, samp1 != samp2)
 ```
@@ -2379,6 +2380,79 @@ bray_wistat_boxplot_PA <- ggplot(bray_df_wistat, aes(x = station1, y = value))  
                                  legend.text = element_text(size = 4),  #Set the legend text
                                  legend.position="top", #Default the legend position to the right
                                  plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")); bray_wistat_boxplot_PA #top, right, bottom, left
+dev.off()
+```
+
+```{r plot interstation comparisons FL fraction}
+#only retain BC dissimilarities between stations at same time, dpeht and fraction
+bray_df_betweenstat <- subset(bray_df, station1 != station2)
+bray_df_betweenstat <- subset(bray_df_betweenstat, fraction1 == "E")
+bray_df_betweenstat <- subset(bray_df_betweenstat, fraction1 == fraction2)
+bray_df_betweenstat <- subset(bray_df_betweenstat, season1 == season2)
+bray_df_betweenstat <- subset(bray_df_betweenstat, depth1 == depth2)
+
+#Kruskall-Wallis test
+bray_stat_KW <- kruskal.test(bray_df_betweenstat$value ~ as.factor(bray_df_betweenstat$compstat)) 
+print(bray_stat_KW)  # show Kruskal Wallis result
+
+# Which samples are significantly different from each other?  
+bray_stat_KW_MC <- kruskalmc(bray_df_betweenstat$value ~ as.factor(bray_df_betweenstat$compstat))  ## Defaults to P < 0.05
+print(bray_stat_KW_MC)
+
+# Test to find the letters to represent significance in a plot
+bray_stat_KW_test <- bray_stat_KW_MC$dif.com$difference # select logical vector
+names(bray_stat_KW_test) <- row.names(bray_stat_KW_MC$dif.com) # add comparison names
+
+# create a list with "homogenous groups" coded by letter
+bray_stat_KW_letters <- multcompLetters(bray_stat_KW_test, compare="<", threshold=0.05, 
+                                Letters=c(letters, LETTERS, "."), reversed = FALSE)
+
+#  Extract the values from the multcompLetters object
+bray_stat_KW_sigs_dataframe <-  data.frame(as.vector(names(bray_stat_KW_letters$Letters)), as.vector(bray_stat_KW_letters$Letters))
+colnames(bray_stat_KW_sigs_dataframe) <- c("compstat", "siglabel")
+bray_stat_KW_try <- merge(bray_df_betweenstat, bray_stat_KW_sigs_dataframe, by = "compstat")
+
+
+bray_stat_KW_try$compstat <-factor(bray_stat_KW_try$compstat,levels=c("Sp_MLBvsMM15","Sp_MLBvsMM110","Sp_MM15vsMM110","Su_MLBvsMM15","Su_MLBvsMM110", "Su_MM15vsMM110", "Fa_MLBvsMM15","Fa_MLBvsMM110","Fa_MM15vsMM110" ))
+
+bray_stat_KW_sigs <- bray_stat_KW_try %>%
+  select(compstat, compstat, siglabel) %>%
+  distinct()
+
+#ordering levels
+#bray_df_betweenstat$compfrac <- factor(bray_df_betweenstat$compfrac,levels=c("Sp_FL","Su_FL","Fa_FL","Sp_PA","Su_PA","Fa_PA","Sp_FLvsPA","Su_FLvsPA","Fa_FLvsPA","Sp-Su_FL","Sp-Fa_FL","Su-Fa_FL","Sp-Su_PA","Sp-Fa_PA","Su-Fa_PA","Sp-Su_FLvsPA","Sp-Fa_FLvsPA","Su-Fa_FLvsPA"))
+#bray_df_betweenstat$compdepth <- factor(bray_df_betweenstat$compdepth,levels=c("Sp_Surf","Su_Surf","Fa_Surf","Sp_Deep","Su_Deep","Fa_Deep","Sp_SurfvsDeep","Su_SurfvsDeep","Fa_SurfvsDeep"))
+bray_df_betweenstat$compstat <-factor(bray_df_betweenstat$compstat,levels=c("Sp_MLBvsMM15","Sp_MLBvsMM110","Sp_MM15vsMM110","Su_MLBvsMM15","Su_MLBvsMM110", "Su_MM15vsMM110", "Fa_MLBvsMM15","Fa_MLBvsMM110","Fa_MM15vsMM110" ))
+
+unique(bray_df_betweenstat$compdepth)
+#determine number of samples in comparisons
+#nrow(subset(bray_df_betweenstat, station1 == "MLB"))
+#nrow(subset(bray_df_betweenstat, station1 == "MM15"))
+#nrow(subset(bray_df_betweenstat, station1 == "MM110"))
+
+
+#plot
+pdf(file="Figures/Rplot_BetaDiv_BetweenStations_boxplot_FL.pdf", width= 3.5, height=3.5, pointsize= 8, colormodel="cmyk", useDingbats = FALSE)
+bray_betweenstat_boxplot_FL <- ggplot(bray_df_betweenstat, aes(x = compstat, y = value))  +
+  geom_boxplot(outlier.size = 0)  + ggtitle("") +
+  geom_point(size=1,alpha=1, position = position_jitter()) +
+  geom_text(data = bray_stat_KW_sigs, aes(label = siglabel, x = compstat, y = 0), size = 2) +
+  xlab("") + ylab("Bray-Curtis dissimilarity") + theme_bw() + ylim(0,1) +
+  scale_x_discrete(breaks=c("Sp_MLBvsMM15","Sp_MLBvsMM110","Sp_MM15vsMM110","Su_MLBvsMM15","Su_MLBvsMM110", "Su_MM15vsMM110", "Fa_MLBvsMM15","Fa_MLBvsMM110","Fa_MM15vsMM110"),labels=c("Sp_MLBvsMM15","Sp_MLBvsMM110","Sp_MM15vsMM110","Su_MLBvsMM15","Su_MLBvsMM110", "Su_MM15vsMM110", "Fa_MLBvsMM15","Fa_MLBvsMM110","Fa_MM15vsMM110")) + 
+  guides(color=guide_legend(title="comparison")) +
+  theme(plot.title = element_text(face="bold", size=7),  #Set the plot title
+                                 strip.text.x = element_blank(),  #Set the facet titles on x-axis 
+                                 strip.text.y = element_blank(),  #Set the facet titles on x-axis 
+                                 strip.background = element_blank(),  #Set the facet background to no background
+                                 axis.title.x = element_text(face="bold", size=7),  #Set the x-axis title
+                                 axis.title.y = element_text(face="bold", size=7),  #Set the y-axis title
+                                 axis.text.x = element_text(angle=45, colour = "black", 
+                                                            vjust=1, hjust = 1, size=7),  #Set the x-axis labels
+                                 axis.text.y = element_text(colour = "black", size=7),  #Set the y-axis labels
+                                 legend.title = element_text(size = 6, face="bold"),  #Set the legend title 
+                                 legend.text = element_text(size = 4),  #Set the legend text
+                                 legend.position="right", #Default the legend position to the right
+                                 plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")); bray_betweenstat_boxplot_FL #top, right, bottom, left
 dev.off()
 ```
 
