@@ -2223,7 +2223,7 @@ bray_wifrac_boxplot <- ggplot(bray_df_wifrac, aes(x = fraction1, y = value))  +
   geom_boxplot(outlier.size = 0)  + ggtitle("") +
   geom_point(aes(color=complake),size=1,alpha=1, position = position_dodge(0.8)) +
   geom_text(data = bray_frac_KW_sigs, aes(label = siglabel, x = fraction1, y = 0), size = 2) +
-  xlab("") + ylab("Bray-Curtis dissimilarity") + theme_bw() + 
+  xlab("") + ylab("Bray-Curtis dissimilarity") + theme_bw() + ylim(0,1) +
   scale_x_discrete(breaks=c("B", "E"),labels=c("FL\n(n=552)","PA\n(n=506)")) + 
   guides(color=guide_legend(title="comparison")) +
   theme(plot.title = element_text(face="bold", size=7),  #Set the plot title
@@ -2237,11 +2237,160 @@ bray_wifrac_boxplot <- ggplot(bray_df_wifrac, aes(x = fraction1, y = value))  +
                                  axis.text.y = element_text(colour = "black", size=7),  #Set the y-axis labels
                                  legend.title = element_text(size = 6, face="bold"),  #Set the legend title 
                                  legend.text = element_text(size = 4),  #Set the legend text
-                                 legend.position="right", #Default the legend position to the right
+                                 legend.position="top", #Default the legend position to the right
                                  plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")); bray_wifrac_boxplot #top, right, bottom, left
 dev.off()
 ```
 
+```{r plot station comparisons FL fraction}
+#only retain BC dissimilarities within each fraction, not betwee the two fractions
+bray_df_wistat <- subset(bray_df, station1 == station2)
+bray_df_wistat <- subset(bray_df_wistat, fraction1 == fraction2)
+bray_df_wistat <- subset(bray_df_wistat, season1 != season2)
+bray_df_wistat <- subset(bray_df_wistat, fraction1 == "B")
+
+#Kruskall-Wallis test
+bray_stat_KW <- kruskal.test(bray_df_wistat$value ~ as.factor(bray_df_wistat$station1)) 
+print(bray_stat_KW)  # show Kruskal Wallis result
+
+# Which samples are significantly different from each other?  
+bray_stat_KW_MC <- kruskalmc(bray_df_wistat$value ~ as.factor(bray_df_wistat$station1))  ## Defaults to P < 0.05
+print(bray_stat_KW_MC)
+
+# Test to find the letters to represent significance in a plot
+bray_stat_KW_test <- bray_stat_KW_MC$dif.com$difference # select logical vector
+names(bray_stat_KW_test) <- row.names(bray_stat_KW_MC$dif.com) # add comparison names
+
+# create a list with "homogenous groups" coded by letter
+bray_stat_KW_letters <- multcompLetters(bray_stat_KW_test, compare="<", threshold=0.05, 
+                                Letters=c(letters, LETTERS, "."), reversed = FALSE)
+
+#  Extract the values from the multcompLetters object
+bray_stat_KW_sigs_dataframe <-  data.frame(as.vector(names(bray_stat_KW_letters$Letters)), as.vector(bray_stat_KW_letters$Letters))
+colnames(bray_stat_KW_sigs_dataframe) <- c("station1", "siglabel")
+bray_stat_KW_try <- merge(bray_df_wistat, bray_stat_KW_sigs_dataframe, by = "station1")
+
+bray_stat_KW_try$station1 <-factor(bray_stat_KW_try$station1,levels=c( "MLB", "MM15","MM110"))
+
+bray_stat_KW_sigs <- bray_stat_KW_try %>%
+  select(station1, station1, siglabel) %>%
+  distinct()
+
+#ordering levels
+bray_df_wistat$compfrac <- factor(bray_df_wistat$compfrac,levels=c("Sp_FL","Su_FL","Fa_FL","Sp_PA","Su_PA","Fa_PA","Sp_FLvsPA","Su_FLvsPA","Fa_FLvsPA","Sp-Su_FL","Sp-Fa_FL","Su-Fa_FL","Sp-Su_PA","Sp-Fa_PA","Su-Fa_PA","Sp-Su_FLvsPA","Sp-Fa_FLvsPA","Su-Fa_FLvsPA"))
+bray_df_wistat$compdepth <- factor(bray_df_wistat$compdepth,levels=c("Sp-Su_Surf","Sp-Fa_Surf","Su-Fa_Surf","Sp-Su_Deep","Sp-Fa_Deep","Su-Fa_Deep","Sp-Su_SurfvsDeep","Sp-Fa_SurfvsDeep","Su-Fa_SurfvsDeep"))
+bray_df_wistat$station1 <- factor(bray_df_wistat$station1,levels=c("MLB","MM15","MM110"))
+
+#determine number of samples in comparisons
+nrow(subset(bray_df_wistat, station1 == "MLB"))
+nrow(subset(bray_df_wistat, station1 == "MM15"))
+nrow(subset(bray_df_wistat, station1 == "MM110"))
+
+
+#plot
+pdf(file="Figures/Rplot_BetaDivStations_boxplot_FL.pdf", width= 3.5, height=3.5, pointsize= 8, colormodel="cmyk", useDingbats = FALSE)
+bray_wistat_boxplot_FL <- ggplot(bray_df_wistat, aes(x = station1, y = value))  +
+  geom_boxplot(outlier.size = 0)  + ggtitle("") +
+  geom_point(aes(color=compdepth),size=1,alpha=1, position = position_dodge(0.8)) +
+  geom_text(data = bray_stat_KW_sigs, aes(label = siglabel, x = station1, y = 0), size = 2) +
+  xlab("") + ylab("Bray-Curtis dissimilarity") + theme_bw() + ylim(0,1) +
+  scale_x_discrete(breaks=c("MLB", "MM15","MM110"),labels=c("MLB\n(n=)","M15\n(n=)","M110\n(n=)")) + 
+  guides(color=guide_legend(title="comparison")) +
+  theme(plot.title = element_text(face="bold", size=7),  #Set the plot title
+                                 strip.text.x = element_blank(),  #Set the facet titles on x-axis 
+                                 strip.text.y = element_blank(),  #Set the facet titles on x-axis 
+                                 strip.background = element_blank(),  #Set the facet background to no background
+                                 axis.title.x = element_text(face="bold", size=7),  #Set the x-axis title
+                                 axis.title.y = element_text(face="bold", size=7),  #Set the y-axis title
+                                 axis.text.x = element_text(angle=0, colour = "black", 
+                                                            vjust=1, hjust = 0.5, size=7),  #Set the x-axis labels
+                                 axis.text.y = element_text(colour = "black", size=7),  #Set the y-axis labels
+                                 legend.title = element_text(size = 6, face="bold"),  #Set the legend title 
+                                 legend.text = element_text(size = 4),  #Set the legend text
+                                 legend.position="top", #Default the legend position to the right
+                                 plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")); bray_wistat_boxplot_FL #top, right, bottom, left
+dev.off()
+```
+
+```{r plot station comparisons PA fraction}
+#only retain BC dissimilarities within each fraction, not betwee the two fractions
+bray_df_wistat <- subset(bray_df, station1 == station2)
+bray_df_wistat <- subset(bray_df_wistat, fraction1 == fraction2)
+bray_df_wistat <- subset(bray_df_wistat, season1 != season2)
+bray_df_wistat <- subset(bray_df_wistat, fraction1 == "E")
+
+#Kruskall-Wallis test
+bray_stat_KW <- kruskal.test(bray_df_wistat$value ~ as.factor(bray_df_wistat$station1)) 
+print(bray_stat_KW)  # show Kruskal Wallis result
+
+# Which samples are significantly different from each other?  
+bray_stat_KW_MC <- kruskalmc(bray_df_wistat$value ~ as.factor(bray_df_wistat$station1))  ## Defaults to P < 0.05
+print(bray_stat_KW_MC)
+
+# Test to find the letters to represent significance in a plot
+bray_stat_KW_test <- bray_stat_KW_MC$dif.com$difference # select logical vector
+names(bray_stat_KW_test) <- row.names(bray_stat_KW_MC$dif.com) # add comparison names
+
+# create a list with "homogenous groups" coded by letter
+bray_stat_KW_letters <- multcompLetters(bray_stat_KW_test, compare="<", threshold=0.05, 
+                                Letters=c(letters, LETTERS, "."), reversed = FALSE)
+
+#  Extract the values from the multcompLetters object
+bray_stat_KW_sigs_dataframe <-  data.frame(as.vector(names(bray_stat_KW_letters$Letters)), as.vector(bray_stat_KW_letters$Letters))
+colnames(bray_stat_KW_sigs_dataframe) <- c("station1", "siglabel")
+bray_stat_KW_try <- merge(bray_df_wistat, bray_stat_KW_sigs_dataframe, by = "station1")
+
+bray_stat_KW_try$station1 <-factor(bray_stat_KW_try$station1,levels=c( "MLB", "MM15","MM110"))
+
+bray_stat_KW_sigs <- bray_stat_KW_try %>%
+  select(station1, station1, siglabel) %>%
+  distinct()
+
+#ordering levels
+bray_df_wistat$compfrac <- factor(bray_df_wistat$compfrac,levels=c("Sp_FL","Su_FL","Fa_FL","Sp_PA","Su_PA","Fa_PA","Sp_FLvsPA","Su_FLvsPA","Fa_FLvsPA","Sp-Su_FL","Sp-Fa_FL","Su-Fa_FL","Sp-Su_PA","Sp-Fa_PA","Su-Fa_PA","Sp-Su_FLvsPA","Sp-Fa_FLvsPA","Su-Fa_FLvsPA"))
+bray_df_wistat$compdepth <- factor(bray_df_wistat$compdepth,levels=c("Sp-Su_Surf","Sp-Fa_Surf","Su-Fa_Surf","Sp-Su_Deep","Sp-Fa_Deep","Su-Fa_Deep","Sp-Su_SurfvsDeep","Sp-Fa_SurfvsDeep","Su-Fa_SurfvsDeep"))
+bray_df_wistat$station1 <- factor(bray_df_wistat$station1,levels=c("MLB","MM15","MM110"))
+
+#determine number of samples in comparisons
+nrow(subset(bray_df_wistat, station1 == "MLB"))
+nrow(subset(bray_df_wistat, station1 == "MM15"))
+nrow(subset(bray_df_wistat, station1 == "MM110"))
+
+
+#plot
+pdf(file="Figures/Rplot_BetaDivStations_boxplot_PA.pdf", width= 3.5, height=3.5, pointsize= 8, colormodel="cmyk", useDingbats = FALSE)
+bray_wistat_boxplot_PA <- ggplot(bray_df_wistat, aes(x = station1, y = value))  +
+  geom_boxplot(outlier.size = 0)  + ggtitle("") +
+  geom_point(aes(color=compdepth),size=1,alpha=1, position = position_dodge(0.8)) +
+  geom_text(data = bray_stat_KW_sigs, aes(label = siglabel, x = station1, y = 0), size = 2) +
+  xlab("") + ylab("Bray-Curtis dissimilarity") + theme_bw() + ylim(0,1) +
+  scale_x_discrete(breaks=c("MLB", "MM15","MM110"),labels=c("MLB\n(n=)","M15\n(n=)","M110\n(n=)")) + 
+  guides(color=guide_legend(title="comparison")) +
+  theme(plot.title = element_text(face="bold", size=7),  #Set the plot title
+                                 strip.text.x = element_blank(),  #Set the facet titles on x-axis 
+                                 strip.text.y = element_blank(),  #Set the facet titles on x-axis 
+                                 strip.background = element_blank(),  #Set the facet background to no background
+                                 axis.title.x = element_text(face="bold", size=7),  #Set the x-axis title
+                                 axis.title.y = element_text(face="bold", size=7),  #Set the y-axis title
+                                 axis.text.x = element_text(angle=0, colour = "black", 
+                                                            vjust=1, hjust = 0.5, size=7),  #Set the x-axis labels
+                                 axis.text.y = element_text(colour = "black", size=7),  #Set the y-axis labels
+                                 legend.title = element_text(size = 6, face="bold"),  #Set the legend title 
+                                 legend.text = element_text(size = 4),  #Set the legend text
+                                 legend.position="top", #Default the legend position to the right
+                                 plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")); bray_wistat_boxplot_PA #top, right, bottom, left
+dev.off()
+```
+
+```{r final figures}
+library(grid)
+library(gridExtra)
+
+pdf(file="Figures/Rplot_BetaDiv_boxplot_combined.pdf", width= 7, height=3.5, pointsize= 8, colormodel="cmyk", useDingbats = FALSE)
+grid.arrange(bray_wifrac_boxplot,bray_wistat_boxplot_FL,bray_wistat_boxplot_PA,ncol=3)
+dev.off()
+
+```
 
 ## Figure 5: diff abundant otus visualized by functional groups
 ```{r Deseq analysis and plots by functional group}
