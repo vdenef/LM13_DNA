@@ -1464,7 +1464,7 @@ grid.arrange(rich_Seas_Stat_boxplot,rich_Stat_Seas_boxplot,rich_Frac_Seas_boxplo
 dev.off()
 ```
 
-### Figure 3 + Table X: PCoA, PERMANOVA
+### Figure 3 + Table 2: PCoA, PERMANOVA
 ```{r adonis}
 # Prune out rare taxa
 # Keep OTUs above average relative abundance of 7 reads (0.01%)
@@ -1884,9 +1884,13 @@ dev.off()
 ## Figure 4: boxplots bray-curtis distances across seasons and stations by fraction 
 ```{r create dataframe with bray curtis dissimilarities and factors describing comparison classes}
 ### determine whether community dissimilarity is higher for PA than FL between station and across seasons
+a <- apply(otu_table(physeq.scale), MARGIN = 1, function(x) {mean(x)} )
+keep <- a > 7
+physeq.prune <- prune_taxa(keep, physeq.scale)
+ntaxa(physeq.prune) 
 
 #create dataframe with paired BC dissimilarity and add metadata for compared samples
-physeq.bray <- phyloseq::distance(physeq = physeq.scale, method = "bray")
+physeq.bray <- phyloseq::distance(physeq = physeq.prune, method = "bray")
 bray_df <- melt(as.matrix(physeq.bray), varnames = c("samp1", "samp2"))
 
 bray_df$season1 <- substr(bray_df$samp1,1,2) # Create a new column called season1 with first 2 letters of string
@@ -2563,7 +2567,7 @@ theme_deseq2 <- theme(plot.title = element_text(face="bold", size=7),  #Set the 
                                  legend.title = element_text(size = 8, face="bold"),  #Set the legend title 
                                  legend.text = element_text(size = 8),  #Set the legend text
                                  legend.position = "none",
-                                 panel.grid.major.y = element_blank(),
+                                 panel.grid.major.y = element_blank(colour="gray70", linetype = "dash"),
                                  panel.grid.major.x = element_blank())
 
 # Plot
@@ -2738,7 +2742,7 @@ non.abund <- filter(sigtab.invaded, log2FoldChange > 0)
 kable(x = non.abund)
 ```
 
-##BIOENV analysis --- perhaps remove Day vs night samples as too similar + remove autocorrelated vars
+##Table 3: BIOENV analysis
 ```{r bioenv analysis}
 physeq_dupmerge.prune.envsub <-subset_samples(physeq_dupmerge.prune,Duplicates=="Sp13.ED.MM15.SD.1"|Duplicates=="Sp13.ED.MM110.SD.1"|Duplicates=="Sp13.ED.MM110.SN.1"|Duplicates=="Sp13.ED.MM15.SN.1"|Duplicates=="Su13.ED.MM15.SN.1"|Duplicates=="Su13.ED.MM15.SD.1"|Duplicates=="Su13.ED.MM110.DCMD.1"|Duplicates=="Su13.ED.MM110.SD.1"|Duplicates=="Su13.ED.MM110.SN.1"|Duplicates=="Fa13.ED.MM15.SN.1"|Duplicates=="Fa13.ED.MM15.SD.1"|Duplicates=="Fa13.ED.MM110.DN.1"|Duplicates=="Fa13.ED.MM110.SD.1"|Duplicates=="Fa13.ED.MM110.SN.1"|Duplicates=="Sp13.BD.MM15.SD.1"|Duplicates=="Sp13.BD.MM110.SD.1"|Duplicates=="Sp13.BD.MM110.SN.1"|Duplicates=="Sp13.BD.MM15.SN.1"|Duplicates=="Su13.BD.MM15.SN.1"|Duplicates=="Su13.BD.MM15.SD.1"|Duplicates=="Su13.BD.MM110.DCMD.1"|Duplicates=="Su13.BD.MM110.DN.1"|Duplicates=="Su13.BD.MM110.SD.1"|Duplicates=="Su13.BD.MM110.SN.1"|Duplicates=="Fa13.BD.MM15.SN.1"|Duplicates=="Fa13.BD.MM15.SD.1"|Duplicates=="Fa13.BD.MM110.DN.1"|Duplicates=="Fa13.BD.MM110.SD.1"|Duplicates=="Fa13.BD.MM110.SN.1")
 
