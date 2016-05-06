@@ -2238,7 +2238,7 @@ bray_wifrac_boxplot <- ggplot(bray_df_wifrac, aes(x = fraction1, y = value))  +
                                  axis.text.y = element_text(colour = "black", size=7),  #Set the y-axis labels
                                  legend.title = element_text(size = 6, face="bold"),  #Set the legend title 
                                  legend.text = element_text(size = 4),  #Set the legend text
-                                 legend.position="top", #Default the legend position to the right
+                                 legend.position="right", #Default the legend position to the right
                                  plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")); bray_wifrac_boxplot #top, right, bottom, left
 dev.off()
 ```
@@ -2383,13 +2383,13 @@ bray_wistat_boxplot_PA <- ggplot(bray_df_wistat, aes(x = station1, y = value))  
 dev.off()
 ```
 
-```{r plot interstation comparisons FL fraction}
+```{r plot interstation comparisons both fraction, surface only}
 #only retain BC dissimilarities between stations at same time, dpeht and fraction
 bray_df_betweenstat <- subset(bray_df, station1 != station2)
-bray_df_betweenstat <- subset(bray_df_betweenstat, fraction1 == "E")
 bray_df_betweenstat <- subset(bray_df_betweenstat, fraction1 == fraction2)
 bray_df_betweenstat <- subset(bray_df_betweenstat, season1 == season2)
 bray_df_betweenstat <- subset(bray_df_betweenstat, depth1 == depth2)
+bray_df_betweenstat <- subset(bray_df_betweenstat, depth1 == "S")
 
 #Kruskall-Wallis test
 bray_stat_KW <- kruskal.test(bray_df_betweenstat$value ~ as.factor(bray_df_betweenstat$compstat)) 
@@ -2430,15 +2430,14 @@ unique(bray_df_betweenstat$compdepth)
 #nrow(subset(bray_df_betweenstat, station1 == "MM15"))
 #nrow(subset(bray_df_betweenstat, station1 == "MM110"))
 
-
 #plot
-pdf(file="Figures/Rplot_BetaDiv_BetweenStations_boxplot_FL.pdf", width= 3.5, height=3.5, pointsize= 8, colormodel="cmyk", useDingbats = FALSE)
-bray_betweenstat_boxplot_FL <- ggplot(bray_df_betweenstat, aes(x = compstat, y = value))  +
-  geom_boxplot(outlier.size = 0)  + ggtitle("") +
-  geom_point(size=1,alpha=1, position = position_jitter()) +
+pdf(file="Figures/Rplot_BetaDiv_BetweenStations_boxplot.pdf", width= 3.5, height=3.5, pointsize= 8, colormodel="cmyk", useDingbats = FALSE)
+bray_betweenstat_boxplot <- ggplot(bray_df_betweenstat, aes(x = compstat, y = value))  +
+  geom_boxplot(outlier.size = 1)  + ggtitle("") +
+ # geom_point(aes(color=fraction1),size=1,alpha=1, position = position_dodge(0.8)) +
   geom_text(data = bray_stat_KW_sigs, aes(label = siglabel, x = compstat, y = 0), size = 2) +
   xlab("") + ylab("Bray-Curtis dissimilarity") + theme_bw() + ylim(0,1) +
-  scale_x_discrete(breaks=c("Sp_MLBvsMM15","Sp_MLBvsMM110","Sp_MM15vsMM110","Su_MLBvsMM15","Su_MLBvsMM110", "Su_MM15vsMM110", "Fa_MLBvsMM15","Fa_MLBvsMM110","Fa_MM15vsMM110"),labels=c("Sp_MLBvsMM15","Sp_MLBvsMM110","Sp_MM15vsMM110","Su_MLBvsMM15","Su_MLBvsMM110", "Su_MM15vsMM110", "Fa_MLBvsMM15","Fa_MLBvsMM110","Fa_MM15vsMM110")) + 
+  scale_x_discrete(breaks=c("Sp_MLBvsMM15","Sp_MLBvsMM110","Sp_MM15vsMM110","Su_MLBvsMM15","Su_MLBvsMM110", "Su_MM15vsMM110", "Fa_MLBvsMM15","Fa_MLBvsMM110","Fa_MM15vsMM110"),labels=c("Spring\nMLB-M15","MLB-M110","M15-M110","Summer\nMLB-M15","MLB-M110", "M15-M110", "Fall\nMLB-M15","MLB-M110","M15-M110")) + 
   guides(color=guide_legend(title="comparison")) +
   theme(plot.title = element_text(face="bold", size=7),  #Set the plot title
                                  strip.text.x = element_blank(),  #Set the facet titles on x-axis 
@@ -2447,14 +2446,15 @@ bray_betweenstat_boxplot_FL <- ggplot(bray_df_betweenstat, aes(x = compstat, y =
                                  axis.title.x = element_text(face="bold", size=7),  #Set the x-axis title
                                  axis.title.y = element_text(face="bold", size=7),  #Set the y-axis title
                                  axis.text.x = element_text(angle=45, colour = "black", 
-                                                            vjust=1, hjust = 1, size=7),  #Set the x-axis labels
+                                                            vjust=1, hjust = 1, size=5),  #Set the x-axis labels
                                  axis.text.y = element_text(colour = "black", size=7),  #Set the y-axis labels
                                  legend.title = element_text(size = 6, face="bold"),  #Set the legend title 
                                  legend.text = element_text(size = 4),  #Set the legend text
                                  legend.position="right", #Default the legend position to the right
-                                 plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")); bray_betweenstat_boxplot_FL #top, right, bottom, left
+                                 plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")); bray_betweenstat_boxplot #top, right, bottom, left
 dev.off()
 ```
+
 
 ```{r final figures}
 library(grid)
@@ -2463,6 +2463,11 @@ library(gridExtra)
 pdf(file="Figures/Rplot_BetaDiv_boxplot_combined.pdf", width= 7, height=3.5, pointsize= 8, colormodel="cmyk", useDingbats = FALSE)
 grid.arrange(bray_wifrac_boxplot,bray_wistat_boxplot_FL,bray_wistat_boxplot_PA,ncol=3)
 dev.off()
+
+pdf(file="Figures/Rplot_BetaDiv_boxplot_combined_2.pdf", width= 7, height=3.5, pointsize= 8, colormodel="cmyk", useDingbats = FALSE)
+grid.arrange(bray_betweenstat_boxplot,bray_wifrac_boxplot,ncol=2)
+dev.off()
+
 
 ```
 
@@ -2530,7 +2535,7 @@ sigtab.LMvsMLB$Genus <- factor(sigtab.LMvsMLB$Genus,
 # Plot
 plot.LMvsMLB <- ggplot(sigtab.LMvsMLB, 
   aes(y = energy_short, x = log2FoldChange, color = C_source, shape = sig, size = abundance)) + 
-  xlim(-10,10) +
+  xlim(10,-10) + 
   geom_vline(xintercept = 0, colour="grey", linetype = "longdash") +
   geom_hline(yintercept=c(1.5,2.5,3.5,4.5,5.5,6.5,7.5),color="gray95") +
   xlab("log2fold Lake MI:Muskegon Lake") + 
@@ -2574,7 +2579,7 @@ sigtab.FLvsPA$Genus <- factor(sigtab.FLvsPA$Genus,
 # Plot
 plot.FLvsPA <- ggplot(sigtab.FLvsPA, 
   aes(y = energy_short, x = log2FoldChange, color = C_source, shape = sig, size = abundance)) + 
-  xlim(-10,5) +
+  xlim(5,-10) +
   geom_vline(xintercept = 0, colour="grey", linetype = "longdash") +
   geom_hline(yintercept=c(1.5,2.5,3.5,4.5,5.5,6.5,7.5),color="gray95") +
   xlab("log2fold FL:PA") + 
@@ -2621,7 +2626,7 @@ sigtab.SpvsSu$Genus <- factor(sigtab.SpvsSu$Genus,
 # Plot
 plot.SuvsSp <- ggplot(sigtab.SpvsSu, 
   aes(y = energy_short, x = log2FoldChange, color = C_source, shape = sig, size = abundance)) + 
-  xlim(-10,10) +
+  xlim(10,-10) +
   geom_vline(xintercept = 0, colour="grey", linetype = "longdash") +
   geom_hline(yintercept=c(1.5,2.5,3.5,4.5,5.5,6.5,7.5),color="gray95") +
   xlab("log2fold Summer:Spring") + 
@@ -2668,7 +2673,7 @@ sigtab.SuvsFa$Genus <- factor(sigtab.SuvsFa$Genus,
 # Plot
 plot.SuvsFa <- ggplot(sigtab.SuvsFa, 
   aes(y = energy_short, x = log2FoldChange, color = C_source, shape = sig, size = abundance)) + 
-  xlim(-10,10) +
+  xlim(10,-10) +
   geom_vline(xintercept = 0, colour="grey", linetype = "longdash") +
   geom_hline(yintercept=c(1.5,2.5,3.5,4.5,5.5,6.5,7.5),color="gray95") +
   xlab("log2fold Summer:Fall") + 
@@ -2715,7 +2720,7 @@ sigtab.SvsD$Genus <- factor(sigtab.SvsD$Genus,
 # Plot
 plot.SvsD <- ggplot(sigtab.SvsD, 
   aes(y = energy_short, x = log2FoldChange, color = C_source, shape = sig, size = abundance)) + 
-  xlim(-10,5) +
+  xlim(5,-10) +
   geom_vline(xintercept = 0, colour="grey", linetype = "longdash") +
   geom_hline(yintercept=c(1.5,2.5,3.5,4.5,5.5,6.5,7.5),color="gray95") +
   xlab("log2fold Surface:Deep") + 
@@ -2730,7 +2735,7 @@ plot.SvsD
 # Plot with legend
 plot.SvsD_wlegend <- ggplot(sigtab.SvsD, 
   aes(y = energy_short, x = log2FoldChange, color = C_source, shape = sig, size = abundance)) + 
-  xlim(-10,5) +
+  xlim(5,-10) +
   geom_vline(xintercept = 0, colour="grey", linetype = "longdash") +
   geom_hline(yintercept=c(1.5,2.5,3.5,4.5,5.5,6.5,7.5),color="gray95") +
   xlab("log2fold Surface:Deep") + 
@@ -2796,7 +2801,7 @@ theme_deseq2 <- theme(plot.title = element_text(face="bold", size=7),  #Set the 
 # Plot
 plot.phylLMvsMLB <- ggplot(sigtab.phyl.LMvsMLB, 
   aes(y = Phylum, x = log2FoldChange, color = energy_short, shape = C_source_sig, size = abundance)) + 
-  xlim(-10,10) +
+  xlim(10,-10) +
   geom_vline(xintercept = 0, colour="grey", linetype = "longdash") +
   geom_hline(yintercept=c(1.5,2.5,3.5,4.5,5.5,6.5,7.5,8.5,9.5,10.5,11.5,12.5,13.5,14.5,15.5,16.5,17.5),color="gray95") +
   xlab("log2fold Lake MI:Muskegon Lake") + 
@@ -2820,7 +2825,7 @@ for(i in 1:length(sigtab.phyl.FLvsPA$C_source)){
 # Plot
 plot.phylFLvsPA <- ggplot(sigtab.phyl.FLvsPA, 
   aes(y = Phylum, x = log2FoldChange, color = energy_short, shape = C_source_sig, size = abundance)) + 
-  xlim(-10,5) +
+  xlim(5,-10) +
   geom_vline(xintercept = 0, colour="grey", linetype = "longdash") +
   geom_hline(yintercept=c(1.5,2.5,3.5,4.5,5.5,6.5,7.5,8.5,9.5,10.5,11.5,12.5,13.5,14.5,15.5,16.5,17.5),color="gray95") +
   xlab("log2fold FL:PA") + 
@@ -2845,7 +2850,7 @@ for(i in 1:length(sigtab.phyl.SpvsSu$C_source)){
 # Plot
 plot.phylSuvsSp <- ggplot(sigtab.phyl.SpvsSu, 
   aes(y = Phylum, x = log2FoldChange, color = energy_short, shape = C_source_sig, size = abundance)) + 
-  xlim(-10,10) +
+  xlim(10,-10) +
   geom_vline(xintercept = 0, colour="grey", linetype = "longdash") +
   geom_hline(yintercept=c(1.5,2.5,3.5,4.5,5.5,6.5,7.5,8.5,9.5,10.5,11.5,12.5,13.5,14.5,15.5,16.5,17.5),color="gray95") +
   xlab("log2fold Summer:Spring") + 
@@ -2868,7 +2873,7 @@ for(i in 1:length(sigtab.phyl.SuvsFa$C_source)){
 # Plot
 plot.phylSuvsFa <- ggplot(sigtab.phyl.SuvsFa, 
   aes(y = Phylum, x = log2FoldChange, color = energy_short, shape = C_source_sig, size = abundance)) + 
-  xlim(-10,10) +
+  xlim(10,-10) +
   geom_vline(xintercept = 0, colour="grey", linetype = "longdash") +
   geom_hline(yintercept=c(1.5,2.5,3.5,4.5,5.5,6.5,7.5,8.5,9.5,10.5,11.5,12.5,13.5,14.5,15.5,16.5,17.5),color="gray95") +
   xlab("log2fold Summer:Fall") + 
@@ -2894,7 +2899,7 @@ for(i in 1:length(sigtab.phyl.SvsD$C_source)){
 # Plot
 plot.phylSvsD <- ggplot(sigtab.phyl.SvsD, 
   aes(y = Phylum, x = log2FoldChange, color = energy_short, shape = C_source_sig, size = abundance)) + 
-  xlim(-10,5) +
+  xlim(5,-10) +
   geom_vline(xintercept = 0, colour="grey", linetype = "longdash") +
   geom_hline(yintercept=c(1.5,2.5,3.5,4.5,5.5,6.5,7.5,8.5,9.5,10.5,11.5,12.5,13.5,14.5,15.5,16.5,17.5),color="gray95") +
   xlab("log2fold Suface:Deep") + 
@@ -2911,7 +2916,7 @@ plot.phylSvsD
 pdf(file="Figures/Rplot_deseq_fungroups_phylum_SvsD_wlegend.pdf", width= 3.5, height=10, pointsize= 8, colormodel="cmyk", useDingbats = FALSE)
 plot.phylSvsD_wlegend <- ggplot(sigtab.phyl.SvsD, 
   aes(y = Phylum, x = log2FoldChange, color = energy_short, shape = C_source_sig, size = abundance)) + 
-  xlim(-10,5) +
+  xlim(5,-10) +
   geom_vline(xintercept = 0, colour="grey", linetype = "longdash") +
   xlab("log2fold Surface:Deep") + 
   scale_shape_manual(name = "C source and p-value", breaks = c("autotroph 0", "heterotroph 0","mixotroph 0","autotroph 1", "heterotroph 1","mixotroph 1"), 
@@ -2960,9 +2965,75 @@ dev.off()
 
 ```{r tables?}
 # Table
+
+View(sigtab.LMvsMLB)
 library(knitr)
 non.abund <- filter(sigtab.invaded, log2FoldChange > 0)
 kable(x = non.abund)
+```
+
+```{r plot specific OTUs}
+#Michelle's function to plot otu data
+plot_otus <- function(df, otu, taxrank) {
+ggplot(df,aes(x = Season, y = Abundance, group = StatFrac, color = Station, shape = Station, linetype = Fraction, fill = StatFrac)) +
+geom_point(size = 2) +
+geom_line(size = 0.7) +
+ggtitle(paste(df[1, taxrank], otu)) +
+scale_shape_manual(name = "station", breaks = c("MLB", "MM15",  "MM110"), 
+                     labels = c("MLB", "M15",  "M110"),
+                     values = c("MLB" = 21, "MM15" = 22, "MM110" = 24)) +
+scale_color_manual(name = "station", breaks = c("MLB","MM15","MM110"), 
+                     labels = c("MLB","M15","M110"),
+                     values = c("MLB" = "darkgreen", "MM15" = "green", "MM110" = "blue")) +
+scale_fill_manual(name = "fraction", breaks = c("MLB B","MLB E","MM15 B","MM15 E","MM110 B","MM110 E"), 
+                     labels = c("MLB FL","MLB PA","MM15 FL","MM15 PA","MM110 FL","MM110 PA"),
+                     values = c("MLB B" = "darkgreen", "MLB E" = "white", "MM15 B" = "green", "MM15 E" = "white", "MM110 B" = "blue", "MM110 E" = "white")) +
+facet_grid(Depth_C ~.) +
+ylab("rel. abund") + #scale_color_manual(values = station_colors) +
+scale_x_discrete(breaks =c("Sp","Su","Fa"),drop = FALSE) +
+theme(axis.text.x = element_text(angle = 45, vjust=1, hjust = 1, size=7), 
+  axis.title.y = element_text(size = 7),
+  axis.title.x = element_text(size = 7),
+  axis.text.y = element_text(size = 7),
+  legend.position = "none",plot.title =element_text(size = 7, face = "bold")
+)
+}
+
+# Function to order sample levels correctly
+order_samples <- function(df) {
+  df$xvalue <-factor(df$xvalue, levels =c("Sp S","Su S","Fa S","Su M","Sp D","Su D","Fa D"))
+  df$StatFrac <-factor(df$StatFrac, levels =c("MLB B","MLB E","MM15 B","MM15 E","MM110 B","MM110 E"))
+  df$Season <-factor(df$Season, levels =c("Sp","Su","Fa"))
+  df$Depth_C <-factor(df$Depth_C, levels =c("S","M","D"))
+  return(df)
+}
+
+#prep dataframe
+select <-physeq_dupmerge.prune %>%
+  transform_sample_counts(function(x) {x/sum(x)}) %>%
+  subset_taxa(Tribe == "LD12"|Tribe == "Lhab-A1"|Genus == "Nitrosospira"|Phylum =="Chloroflexi") %>%
+  psmelt()
+
+select$xvalue <- paste(select$Season,select$Depth_C)
+select$StatFrac <- paste(select$Station,select$Fraction)
+select <- order_samples(select)
+
+select_names <-as.list(levels(select$Species))
+names(select_names) <-levels(select$Species)
+
+select <- select[!(select$Station!="MLB" & select$Depth_C=="S" & select$DayNight=="N"),]
+  
+select_plots <-lapply(select_names,
+  function(otu) {
+    df_otu <-filter(select, OTU == otu)
+    plot <- plot_otus(df = df_otu, otu = otu, taxrank = "Tribe")
+    return(plot)
+  }
+)
+
+pdf(file="Figures/Rplot_lineplots.pdf", width= 7, height=7, pointsize= 8, colormodel="cmyk", useDingbats = FALSE)
+grid.arrange(select_plots$Otu000002, select_plots$Otu105919, select_plots$Otu000119,select_plots$Otu000021,ncol = 2)
+dev.off()
 ```
 
 ##Table 3: BIOENV analysis
