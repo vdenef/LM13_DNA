@@ -438,19 +438,20 @@ rich_Season_KW_try$Depth_C <- factor(rich_Season_KW_try$Depth_C,levels=c("S","M"
 
 pdf(file="Figures/Rplot_Richness_Season_boxplot.pdf", width= 5, height=5, pointsize= 8)
 rich_Season_boxplot <- ggplot(rich_Season_KW_try, aes(x = Season, y = mean))  +
-  geom_boxplot(aes(color=Season),outlier.size = 0)  + ggtitle("Season") +
-  geom_point(aes(color=Season,shape = Station,size = Fraction,fill=Depth_Seas), position = position_dodge(0.8)) +
-  geom_text(data = rich_Season_KW_sigs, aes(label = siglabel, x = Season, y = .95), size = 2) +
+  geom_boxplot(outlier.size = 0)  + ggtitle("Season") +
+  geom_point(aes(color=Season),alpha=0.5, position = position_dodge(0.8)) +
+  geom_text(data = rich_Season_KW_sigs, aes(label = siglabel, x = Season, y = .95), size = 4) +
   scale_color_manual(name = "season", values = c("Sp" = "darkgreen", "Su" = "red", "Fa" = "mediumblue"),
                      labels = c("Spring",  "Summer", "Fall")) +
-  scale_shape_manual(name = "station", values = c("MLB" = 21, "MM15" = 22, "MM110" = 24),
-                     labels = c("Estuary", "Near",  "Off")) + 
-  scale_size_manual(name = "fraction", breaks = c("B","E"), 
-                     labels = c("Free","Particle"),
-                     values = c("B" = 1, "E" = 2)) +
-    scale_fill_manual(name = "depth", breaks = c("D Sp", "D Su", "D Fa", "M Su", "S Sp", "S Su", "S Fa"), 
-                     labels = c("Deep","Deep","Deep", "Chla max", "Surface", "Surface", "Surface"),
-                     values = c("D Fa" = "mediumblue", "D Sp" = "darkgreen", "D Su" = "red", "M Su" = "orange", "S Sp" = "white", "S Su" = "white", "S Fa" = "white")) +
+
+#  scale_shape_manual(name = "station", values = c("MLB" = 21, "MM15" = 22, "MM110" = 24),
+#                     labels = c("Estuary", "Near",  "Off")) + 
+#  scale_size_manual(name = "fraction", breaks = c("B","E"), 
+#                     labels = c("Free","Particle"),
+#                     values = c("B" = 1, "E" = 2)) +
+#    scale_fill_manual(name = "depth", breaks = c("D Sp", "D Su", "D Fa", "M Su", "S Sp", "S Su", "S Fa"), 
+#                     labels = c("Deep","Deep","Deep", "Chla max", "Surface", "Surface", "Surface"),
+#                     values = c("D Fa" = "mediumblue", "D Sp" = "darkgreen", "D Su" = "red", "M Su" = "orange", "S Sp" = "white", "S Su" = "white", "S Fa" = "white")) +
   scale_x_discrete(breaks=c("Sp", "Su", "Fa"),
                    labels=c("Spring\n(n=14)","Summer\n(n=17)", "Fall\n(n=16)")) + 
   xlab("") + ylab("Observed Richness") + theme_bw() + 
@@ -505,18 +506,10 @@ rich_Fraction_KW_try$Depth_C <- factor(rich_Fraction_KW_try$Depth_C,levels=c("S"
 
 pdf(file="Figures/Rplot_Richness_Fraction_boxplot.pdf", width= 5, height=5, pointsize= 8)
 rich_Fraction_boxplot <- ggplot(rich_Fraction_KW_try, aes(x = Fraction, y = mean))  +
-  geom_boxplot(aes(color=Season),outlier.size = 1)  + ggtitle("Fraction") +
-  #geom_point(aes(color=Season,shape = Station,size = Fraction,fill=Depth_Seas), position = position_dodge(0.8)) +
-  geom_text(data = rich_Fraction_KW_sigs, aes(label = siglabel, x = Fraction, y = .95), size = 2) +
+  geom_boxplot(outlier.size = 0)  + ggtitle("Fraction") +
+  geom_point(aes(color=Season),alpha=0.5, position = position_dodge(0.8)) +
+  geom_text(data = rich_Fraction_KW_sigs, aes(label = siglabel, x = Fraction, y = .95), size = 4) +
   scale_color_manual(name = "season", breaks = c("Sp","Su","Fa"),values = c("Sp" = "darkgreen", "Su" = "red", "Fa" = "mediumblue"),labels = c("Spring",  "Summer", "Fall")) +
-  scale_shape_manual(name = "station", values = c("MLB" = 21, "MM15" = 22, "MM110" = 24),
-                      labels = c("Estuary", "Near",  "Off")) + 
-  scale_size_manual(name = "fraction", breaks = c("B","E"), 
-                     labels = c("Free","Particle"),
-                     values = c("B" = 1, "E" = 2)) +
-  scale_fill_manual(name = "depth", breaks = c("D Sp", "D Su", "D Fa", "M Su", "S Sp", "S Su", "S Fa"), 
-                     labels = c("Deep","Deep","Deep", "Chla max", "Surface", "Surface", "Surface"),
-                     values = c("D Fa" = "mediumblue", "D Sp" = "darkgreen", "D Su" = "red", "M Su" = "orange", "S Sp" = "white", "S Su" = "white", "S Fa" = "white")) +
  scale_x_discrete(breaks=c("B", "E"),
                    labels=c("FL\n(n=24)","PA\n(n=23)")) + 
    xlab("") + ylab("") + theme_bw() + 
@@ -572,18 +565,10 @@ rich_Station_KW_try$Depth_C <- factor(rich_Station_KW_try$Depth_C,levels=c("S","
 
 pdf(file="Figures/Rplot_Richness_Station_boxplot.pdf", width= 5, height=5, pointsize= 8)
 rich_Station_boxplot <- ggplot(rich_Station_KW_try, aes(x = Station, y = mean))  +
-  geom_boxplot(aes(color=Season),outlier.size = 1)  + ggtitle("Station") +
-  #geom_point(aes(color=Season,shape = Station,size = Fraction,fill=Depth_Seas), position = position_dodge(0.8)) +
-  geom_text(data = rich_Station_KW_sigs, aes(label = siglabel, x = Station, y = .95), size = 2) +
+  geom_boxplot(outlier.size = 0)  + ggtitle("Station") +
+  geom_point(aes(color=Season),alpha=0.5, position = position_dodge(0.8)) +
+  geom_text(data = rich_Station_KW_sigs, aes(label = siglabel, x = Station, y = .95), size = 4) +
   scale_color_manual(name = "season", breaks = c("Sp","Su","Fa"),values = c("Sp" = "darkgreen", "Su" = "red", "Fa" = "mediumblue"),labels = c("Spring",  "Summer", "Fall")) +
-  scale_shape_manual(name = "station", values = c("MLB" = 21, "MM15" = 22, "MM110" = 24),
-                      labels = c("Estuary", "Near",  "Off")) + 
-  scale_size_manual(name = "fraction", breaks = c("B","E"), 
-                     labels = c("Free","Particle"),
-                     values = c("B" = 1, "E" = 2)) +
-  scale_fill_manual(name = "depth", breaks = c("D Sp", "D Su", "D Fa", "M Su", "S Sp", "S Su", "S Fa"), 
-                     labels = c("Deep","Deep","Deep", "Chla max", "Surface", "Surface", "Surface"),
-                     values = c("D Fa" = "mediumblue", "D Sp" = "darkgreen", "D Su" = "red", "M Su" = "orange", "S Sp" = "white", "S Su" = "white", "S Fa" = "white")) +
   scale_x_discrete(breaks=c("MLB", "MM15", "MM110"),
                    labels=c("Estuary\n(n=10)","Near\n(n=18)", "Off\n(n=19)")) + 
   xlab("") + ylab("") + theme_bw() + 
@@ -641,18 +626,10 @@ rich_Depth_C_KW_try$Depth_C <- factor(rich_Depth_C_KW_try$Depth_C,levels=c("S","
 
 pdf(file="Figures/Rplot_Richness_Depth_C_boxplot.pdf", width= 5, height=5, pointsize= 8)
 rich_Depth_C_boxplot <- ggplot(rich_Depth_C_KW_try, aes(x = Depth_C, y = mean))  +
-  geom_boxplot(aes(color=Season),outlier.size = 1)  + ggtitle("Depth") +
-  #geom_point(aes(color=Season,shape = Station,size = Fraction,fill=Depth_Seas), position = position_dodge(0.8)) +
-  geom_text(data = rich_Depth_C_KW_sigs, aes(label = siglabel, x = Depth_C, y = .95), size = 2) +
+  geom_boxplot(outlier.size = 0)  + ggtitle("Depth") +
+  geom_point(aes(color=Season),alpha=0.5, position = position_dodge(0.8)) +
+  geom_text(data = rich_Depth_C_KW_sigs, aes(label = siglabel, x = Depth_C, y = .95), size = 4) +
   scale_color_manual(name = "season", breaks = c("Sp","Su","Fa"),values = c("Sp" = "darkgreen", "Su" = "red", "Fa" = "mediumblue"),labels = c("Spring",  "Summer", "Fall")) +
-  scale_shape_manual(name = "station", values = c("MLB" = 21, "MM15" = 22, "MM110" = 24),
-                      labels = c("Estuary", "Near",  "Off")) + 
-  scale_size_manual(name = "fraction", breaks = c("B","E"), 
-                     labels = c("Free","Particle"),
-                     values = c("B" = 1, "E" = 2)) +
-  scale_fill_manual(name = "depth", breaks = c("D Sp", "D Su", "D Fa", "M Su", "S Sp", "S Su", "S Fa"), 
-                     labels = c("Deep","Deep","Deep", "Chla max", "Surface", "Surface", "Surface"),
-                     values = c("D Fa" = "mediumblue", "D Sp" = "darkgreen", "D Su" = "red", "M Su" = "orange", "S Sp" = "white", "S Su" = "white", "S Fa" = "white")) +
   scale_x_discrete(breaks=c("S", "M", "D"),
                    labels=c("Surface\n(n=30)","Chla max\n(n=2)","Deep\n(n=15)")) + 
   xlab("") + ylab("") + theme_bw() + 
@@ -964,19 +941,11 @@ even_Season_KW_try$Depth_C <- factor(even_Season_KW_try$Depth_C,levels=c("S","M"
 
 pdf(file="Figures/Rplot_Evenness_Season_boxplot.pdf", width= 5, height=5, pointsize= 8)
 even_Season_boxplot <- ggplot(even_Season_KW_try, aes(x = Season, y = mean))  +
-  geom_boxplot(aes(color=Season),outlier.size = 0)  + #ggtitle(alpha_title) +
-  geom_point(aes(color=Season,shape = Station,size = Fraction,fill=Depth_Seas), position = position_dodge(0.8)) +
-  geom_text(data = even_Season_KW_sigs, aes(label = siglabel, x = Season, y = 0), size = 2) +
+  geom_boxplot(outlier.size = 0)  + #ggtitle(alpha_title) +
+  geom_point(aes(color=Season),alpha=0.5, position = position_dodge(0.8)) +
+  geom_text(data = even_Season_KW_sigs, aes(label = siglabel, x = Season, y = 0), size = 4) +
   scale_color_manual(name = "season", values = c("Sp" = "darkgreen", "Su" = "red", "Fa" = "mediumblue"),
                      labels = c("Spring",  "Summer", "Fall")) +
-  scale_shape_manual(name = "station", values = c("MLB" = 21, "MM15" = 22, "MM110" = 24),
-                     labels = c("Estuary", "Near",  "Off")) + 
-  scale_size_manual(name = "fraction", breaks = c("B","E"), 
-                     labels = c("Free","Particle"),
-                     values = c("B" = 1, "E" = 2)) +
-  scale_fill_manual(name = "depth", breaks = c("D Sp", "D Su", "D Fa", "M Su", "S Sp", "S Su", "S Fa"), 
-                     labels = c("Deep","Deep","Deep", "Chla max", "Surface", "Surface", "Surface"),
-                     values = c("D Fa" = "mediumblue", "D Sp" = "darkgreen", "D Su" = "red", "M Su" = "orange", "S Sp" = "white", "S Su" = "white", "S Fa" = "white")) +
   scale_x_discrete(breaks=c("Sp", "Su", "Fa"),
                    labels=c("Spring\n(n=14)","Summer\n(n=17)", "Fall\n(n=16)")) + 
   xlab("") + ylab("Simpson's Evenness") + theme_bw() + 
@@ -1032,18 +1001,10 @@ even_Fraction_KW_try$Depth_C <- factor(even_Fraction_KW_try$Depth_C,levels=c("S"
 
 pdf(file="Figures/Rplot_Evenness_Fraction_boxplot.pdf", width= 5, height=5, pointsize= 8)
 even_Fraction_boxplot <- ggplot(even_Fraction_KW_try, aes(x = Fraction, y = mean))  +
-  geom_boxplot(aes(color=Season),outlier.size = 1)  + #ggtitle(alpha_title) +
-  #geom_point(aes(color=Season,shape = Station,size = Fraction,fill=Depth_Seas), position = position_dodge(0.8)) +
-  geom_text(data = even_Fraction_KW_sigs, aes(label = siglabel, x = Fraction, y = 0), size = 2) +
+  geom_boxplot(outlier.size = 0)  + #ggtitle(alpha_title) +
+  geom_point(aes(color=Season),alpha=0.5, position = position_dodge(0.8)) +
+  geom_text(data = even_Fraction_KW_sigs, aes(label = siglabel, x = Fraction, y = 0), size = 4) +
   scale_color_manual(name = "season", breaks = c("Sp","Su","Fa"),values = c("Sp" = "darkgreen", "Su" = "red", "Fa" = "mediumblue"),labels = c("Spring",  "Summer", "Fall")) +
-  scale_shape_manual(name = "station", values = c("MLB" = 21, "MM15" = 22, "MM110" = 24),
-                      labels = c("Estuary", "Near",  "Off")) + 
-  scale_size_manual(name = "fraction", breaks = c("B","E"), 
-                     labels = c("Free","Particle"),
-                     values = c("B" = 1, "E" = 2)) +
-  scale_fill_manual(name = "depth", breaks = c("D Sp", "D Su", "D Fa", "M Su", "S Sp", "S Su", "S Fa"), 
-                     labels = c("Deep","Deep","Deep", "Chla max", "Surface", "Surface", "Surface"),
-                     values = c("D Fa" = "mediumblue", "D Sp" = "darkgreen", "D Su" = "red", "M Su" = "orange", "S Sp" = "white", "S Su" = "white", "S Fa" = "white")) +
  scale_x_discrete(breaks=c("B", "E"),
                    labels=c("FL\n(n=24)","PA\n(n=23)")) + 
    xlab("") + ylab("") + 
@@ -1099,18 +1060,11 @@ even_Station_KW_try$Depth_C <- factor(even_Station_KW_try$Depth_C,levels=c("S","
 
 pdf(file="Figures/Rplot_Evenness_Station_boxplot.pdf", width= 5, height=5, pointsize= 8)
 even_Station_boxplot <- ggplot(even_Station_KW_try, aes(x = Station, y = mean))  +
-  geom_boxplot(aes(color=Season),outlier.size = 1)  + #ggtitle(alpha_title) +
-  #geom_point(aes(color=Season,shape = Station,size = Fraction,fill=Depth_Seas), position = position_dodge(0.8)) +
-  geom_text(data = even_Station_KW_sigs, aes(label = siglabel, x = Station, y = 0), size = 2) +
+  geom_boxplot(outlier.size = 0)  + #ggtitle(alpha_title) +
+geom_point(aes(color=Season),alpha=0.5, position = position_dodge(0.8)) +
+  geom_text(data = even_Station_KW_sigs, aes(label = siglabel, x = Station, y = 0), size = 4) +
   scale_color_manual(name = "season", breaks = c("Sp","Su","Fa"),values = c("Sp" = "darkgreen", "Su" = "red", "Fa" = "mediumblue"),labels = c("Spring",  "Summer", "Fall")) +
-  scale_shape_manual(name = "station", values = c("MLB" = 21, "MM15" = 22, "MM110" = 24),
-                      labels = c("Estuary", "Near",  "Off")) + 
-  scale_size_manual(name = "fraction", breaks = c("B","E"), 
-                     labels = c("Free","Particle"),
-                     values = c("B" = 1, "E" = 2)) +
-  scale_fill_manual(name = "depth", breaks = c("D Sp", "D Su", "D Fa", "M Su", "S Sp", "S Su", "S Fa"), 
-                     labels = c("Deep","Deep","Deep", "Chla max", "Surface", "Surface", "Surface"),
-                     values = c("D Fa" = "mediumblue", "D Sp" = "darkgreen", "D Su" = "red", "M Su" = "orange", "S Sp" = "white", "S Su" = "white", "S Fa" = "white")) +  scale_x_discrete(breaks=c("MLB", "MM15", "MM110"),
+ scale_x_discrete(breaks=c("MLB", "MM15", "MM110"),
                    labels=c("Estuary\n(n=10)","Near\n(n=18)", "Off\n(n=19)")) + 
   xlab("") + ylab("") + 
   theme_bw() + 
@@ -1167,18 +1121,10 @@ even_Depth_C_KW_try$Depth_C <- factor(even_Depth_C_KW_try$Depth_C,levels=c("S","
 
 pdf(file="Figures/Rplot_Evenness_Depth_C_boxplot.pdf", width= 5, height=5, pointsize= 8)
 even_Depth_C_boxplot <- ggplot(even_Depth_C_KW_try, aes(x = Depth_C, y = mean))  +
-  geom_boxplot(aes(color=Season),outlier.size = 1)  + #ggtitle(alpha_title) +
-  #geom_point(aes(color=Season,shape = Station,size = Fraction,fill=Depth_Seas), position = position_dodge(0.8)) +
-  geom_text(data = even_Depth_C_KW_sigs, aes(label = siglabel, x = Depth_C, y = 0), size = 2) +
+  geom_boxplot(outlier.size = 0)  + #ggtitle(alpha_title) +
+  geom_point(aes(color=Season),alpha=0.5, position = position_dodge(0.8)) +
+  geom_text(data = even_Depth_C_KW_sigs, aes(label = siglabel, x = Depth_C, y = 0), size = 4) +
   scale_color_manual(name = "season", breaks = c("Sp","Su","Fa"),values = c("Sp" = "darkgreen", "Su" = "red", "Fa" = "mediumblue"),labels = c("Spring",  "Summer", "Fall")) +
-  scale_shape_manual(name = "station", values = c("MLB" = 21, "MM15" = 22, "MM110" = 24),
-                      labels = c("Estuary", "Near",  "Off")) + 
-  scale_size_manual(name = "fraction", breaks = c("B","E"), 
-                     labels = c("Free","Particle"),
-                     values = c("B" = 1, "E" = 2)) +
-  scale_fill_manual(name = "depth", breaks = c("D Sp", "D Su", "D Fa", "M Su", "S Sp", "S Su", "S Fa"), 
-                     labels = c("Deep","Deep","Deep", "Chla max", "Surface", "Surface", "Surface"),
-                     values = c("D Fa" = "mediumblue", "D Sp" = "darkgreen", "D Su" = "red", "M Su" = "orange", "S Sp" = "white", "S Su" = "white", "S Fa" = "white")) +
   scale_x_discrete(breaks=c("S", "M", "D"),
                    labels=c("Surface\n(n=30)","Chla max\n(n=2)","Deep\n(n=15)")) + 
   xlab("") + ylab("") + 
