@@ -1451,7 +1451,7 @@ even_Depth_Seas_boxplot <- ggplot(even_Depth_Seas_KW_try, aes(x = Depth_Seas, y 
 dev.off()
 ```
 
-```{r final figures}
+```{r final figure 2}
 library(grid)
 library(gridExtra)
 
@@ -1466,10 +1466,18 @@ dev.off()
 
 ### Figure 3 + Table 2: PCoA, PERMANOVA
 ```{r adonis}
-# Prune out rare taxa
-# Keep OTUs above average relative abundance of 7 reads (0.01%)
+#calculate average number of reads in merged, not scaled data (as this is what we will use to prune taxa in deseq and we want to have ordinations based on same taxa)
+mean(sample_sums(physeq_dupmerge))
+
+# Keep OTUs above average relative abundance of 330 reads (0.1% before scaling) for use with deseq 
+a <- apply(otu_table(physeq_dupmerge), MARGIN = 1, function(x) {mean(x)} )
+keep <- a > 330
+physeq_dupmerge.prune <- prune_taxa(keep, physeq_dupmerge)
+ntaxa(physeq_dupmerge.prune) 
+
+# Keep OTUs above average relative abundance of 0.1% in scaled physeq object
 a <- apply(otu_table(physeq.scale), MARGIN = 1, function(x) {mean(x)} )
-keep <- a > 7
+keep <- row.names(otu_table(physeq_dupmerge.prune))
 physeq.prune <- prune_taxa(keep, physeq.scale)
 ntaxa(physeq.prune) 
 
@@ -1588,11 +1596,20 @@ pcoa_BC13_DNA <- ggplot(physeq.pcoa.df, aes(Axis.1, Axis.3, color = Season, shap
 
 ```
 
-```{r pcoa bray curtis after removal otu <0.01% on average}
+```{r pcoa bray curtis after removal otu <0.1% on average}
 # Prune out rare taxa
-# Keep OTUs above average relative abundance of 7 reads (0.01%)
+#calculate average number of reads in merged, not scaled data (as this is what we will use to prune taxa in deseq and we want to have ordinations based on same taxa)
+mean(sample_sums(physeq_dupmerge))
+
+# Keep OTUs above average relative abundance of 330 reads (0.1% before scaling) for use with deseq 
+a <- apply(otu_table(physeq_dupmerge), MARGIN = 1, function(x) {mean(x)} )
+keep <- a > 330
+physeq_dupmerge.prune <- prune_taxa(keep, physeq_dupmerge)
+ntaxa(physeq_dupmerge.prune) 
+
+# Keep OTUs above average relative abundance of 0.1% in scaled physeq object
 a <- apply(otu_table(physeq.scale), MARGIN = 1, function(x) {mean(x)} )
-keep <- a > 7
+keep <- row.names(otu_table(physeq_dupmerge.prune))
 physeq.prune <- prune_taxa(keep, physeq.scale)
 ntaxa(physeq.prune) 
 
@@ -1773,10 +1790,18 @@ pcoa_SOR13_DNA <- ggplot(physeq.pcoa.sor.df, aes(Axis.1, Axis.3, color = Season,
 ```
 
 ```{r pcoa Sørensen after removal of OTU < 0.01% on average}
-# Prune out rare taxa
-# Keep OTUs above average relative abundance of 7 reads (0.01%)
+#calculate average number of reads in merged, not scaled data (as this is what we will use to prune taxa in deseq and we want to have ordinations based on same taxa)
+mean(sample_sums(physeq_dupmerge))
+
+# Keep OTUs above average relative abundance of 330 reads (0.1% before scaling) for use with deseq 
+a <- apply(otu_table(physeq_dupmerge), MARGIN = 1, function(x) {mean(x)} )
+keep <- a > 330
+physeq_dupmerge.prune <- prune_taxa(keep, physeq_dupmerge)
+ntaxa(physeq_dupmerge.prune) 
+
+# Keep OTUs above average relative abundance of 0.1% in scaled physeq object
 a <- apply(otu_table(physeq.scale), MARGIN = 1, function(x) {mean(x)} )
-keep <- a > 7
+keep <- row.names(otu_table(physeq_dupmerge.prune))
 physeq.prune <- prune_taxa(keep, physeq.scale)
 ntaxa(physeq.prune) 
 
@@ -1868,7 +1893,7 @@ pcoa_SOR13.PRUNE_DNA <- ggplot(physeq.pcoa.prune.sor.df, aes(-Axis.1, Axis.3, co
 
 ```
 
-```{r final figures}
+```{r final figures 3 + S1}
 library(grid)
 library(gridExtra)
 
@@ -1876,18 +1901,13 @@ pdf(file="Figures/Rplot_BetaDiv_pcoa.pdf", width= 7, height=3.5, pointsize= 8, c
 grid.arrange(pcoa_BC12_DNA,pcoa_SOR12_DNA,ncol=2)
 dev.off()
 
-pdf(file="Figures/Rplot_BetaDiv_0.01_pcoa.pdf", width= 7, height=3.5, pointsize= 8, colormodel="cmyk", useDingbats = FALSE)
+pdf(file="Figures/Rplot_BetaDiv_0.1_pcoa.pdf", width= 7, height=3.5, pointsize= 8, colormodel="cmyk", useDingbats = FALSE)
 grid.arrange(pcoa_BC12.PRUNE_DNA,pcoa_SOR12.PRUNE_DNA,ncol=2)
 dev.off()
 ```
 
 ## Figure 4: boxplots bray-curtis distances across seasons and stations by fraction 
 ```{r create dataframe with bray curtis dissimilarities and factors describing comparison classes}
-### determine whether community dissimilarity is higher for PA than FL between station and across seasons
-a <- apply(otu_table(physeq.scale), MARGIN = 1, function(x) {mean(x)} )
-keep <- a > 7
-physeq.prune <- prune_taxa(keep, physeq.scale)
-ntaxa(physeq.prune) 
 
 #create dataframe with paired BC dissimilarity and add metadata for compared samples
 physeq.bray <- phyloseq::distance(physeq = physeq.prune, method = "bray")
@@ -2384,7 +2404,7 @@ dev.off()
 ```
 
 ```{r plot interstation comparisons both fraction, surface only}
-#only retain BC dissimilarities between stations at same time, dpeht and fraction
+#only retain BC dissimilarities between stations at same time, depth and fraction
 bray_df_betweenstat <- subset(bray_df, station1 != station2)
 bray_df_betweenstat <- subset(bray_df_betweenstat, fraction1 == fraction2)
 bray_df_betweenstat <- subset(bray_df_betweenstat, season1 == season2)
@@ -2456,17 +2476,9 @@ dev.off()
 ```
 
 
-```{r final figures}
+```{r final figure 4}
 library(grid)
 library(gridExtra)
-
-pdf(file="Figures/Rplot_BetaDiv_boxplot_combined.pdf", width= 7, height=3.5, pointsize= 8, colormodel="cmyk", useDingbats = FALSE)
-grid.arrange(bray_wifrac_boxplot,bray_wistat_boxplot_FL,bray_wistat_boxplot_PA,ncol=3)
-dev.off()
-
-pdf(file="Figures/Rplot_BetaDiv_boxplot_combined_2.pdf", width= 7, height=3.5, pointsize= 8, colormodel="cmyk", useDingbats = FALSE)
-grid.arrange(bray_betweenstat_boxplot,bray_wifrac_boxplot,ncol=2)
-dev.off()
 
 pdf(file="Figures/Rplot_BetaDiv_boxplot_betweenstat.pdf", width= 3.5, height=3.5, pointsize= 8, colormodel="cmyk", useDingbats = FALSE)
 grid.arrange(bray_betweenstat_boxplot,ncol=1)
@@ -2474,8 +2486,8 @@ dev.off()
 
 ```
 
-## Figure 5: diff abundant otus visualized by functional groups
-```{r Deseq analysis and plots by functional group}
+## Figure 5 and 6: diff abundant otus visualized by functional groups
+```{r Deseq analysis and plots by functional group PA vs FL}
 mean(sample_sums(physeq_dupmerge))
 # Keep OTUs above average relative abundance of 330 reads (0.1% before scaling) for use with deseq 
 a <- apply(otu_table(physeq_dupmerge), MARGIN = 1, function(x) {mean(x)} )
@@ -2507,51 +2519,7 @@ theme_deseq <- theme(plot.title = element_text(face="bold", size=7),  #Set the p
                                  panel.grid.major.y = element_blank(),
                                  panel.grid.major.x = element_blank())
                        
-##1. LM vs MLB
-# Convert to deseq object, comparing Muskegon Lake vs Lake Michigan, controlling for sason, fraction and Depth
-physeq_dupmerge.prune.LMvsMLB.deseq <- phyloseq_to_deseq2(physeq_dupmerge.prune, ~Season+Fraction+Depth_C+Lake)
-physeq_dupmerge.prune.LMvsMLB.deseq = DESeq(physeq_dupmerge.prune.LMvsMLB.deseq, test = "Wald", fitType = "parametric", betaPrior=FALSE)
-
-# Summarize results and combine with tax_table and fungroup dataframes
-res = data.frame(results(physeq_dupmerge.prune.LMvsMLB.deseq, cooksCutoff = FALSE,contrast=c("Lake","MM","MLB")))
-res = data.frame(OTU = row.names(res), res)
-alpha = 1
-sigtab.LMvsMLB <-
-  res %>%
-    filter(padj < alpha) 
-sigtab.LMvsMLB <- cbind(sigtab.LMvsMLB, 
-  as(tax_table(physeq_dupmerge.prune)[sigtab.LMvsMLB$OTU, ], "matrix"),fungroupfile[sigtab.LMvsMLB$OTU, ])
-
-#calculate average abundance acorss all datasets to scale geom_point in plot
-plotvalue <- data.frame(data.frame(tax_table(physeq_dupmerge))$Species,as.vector(as.numeric(taxa_sums(physeq_dupmerge)/sum(sample_sums(physeq_dupmerge))*100)))
-colnames(plotvalue) <- c("species","abundance")
-row.names(plotvalue) <- plotvalue$species
-plotvalue <- plotvalue[row.names(plotvalue) %in% sigtab.LMvsMLB$Species, ]
-sigtab.LMvsMLB <- cbind(sigtab.LMvsMLB,plotvalue[sigtab.LMvsMLB$OTU, ])
-sigtab.LMvsMLB$sig <- as.factor((sigtab.LMvsMLB$padj<0.01)*1)
-
-# Change genus levels so organized by energy_short
-sigtab.LMvsMLB <- arrange(sigtab.LMvsMLB, energy_short)
-sigtab.LMvsMLB$Genus <- factor(sigtab.LMvsMLB$Genus, 
-  levels = unique(sigtab.LMvsMLB$Genus))
-
-# Plot
-plot.LMvsMLB <- ggplot(sigtab.LMvsMLB, 
-  aes(y = energy_short, x = log2FoldChange, color = C_source, shape = sig, size = abundance)) + 
-  xlim(10,-10) + 
-  geom_vline(xintercept = 0, colour="grey", linetype = "longdash") +
-  geom_hline(yintercept=c(1.5,2.5,3.5,4.5,5.5,6.5,7.5),color="gray95") +
-  xlab("log2fold Lake MI:Muskegon Lake") + 
-  scale_y_discrete(breaks=NULL) +
-  geom_jitter(position = position_jitter(height = 0.4),alpha=0.7) + 
-  scale_shape_manual(name = "p-value", breaks = c("0", "1"), 
-                    labels = c("p>0.01", "p<0.01"),
-                    values = c("0" = 21, "1"= 19)) +
-  theme_deseq
-plot.LMvsMLB 
-#View(sigtab.LMvsMLB)
-
-##2. FL vs PA
+##FL vs PA
 # Convert to deseq object, comparing Muskegon Lake vs Lake Michigan, controlling for sason, fraction and Depth
 physeq_dupmerge.prune.frac.deseq <- phyloseq_to_deseq2(physeq_dupmerge.prune, ~Season+Depth_C+Lake+Fraction)
 physeq_dupmerge.prune.frac.deseq = DESeq(physeq_dupmerge.prune.frac.deseq, test = "Wald", fitType = "parametric", betaPrior=FALSE)
@@ -2578,13 +2546,18 @@ sigtab.FLvsPA$sig <- as.factor((sigtab.FLvsPA$padj<0.01)*1)
 sigtab.FLvsPA <- arrange(sigtab.FLvsPA, energy_short)
 sigtab.FLvsPA$Genus <- factor(sigtab.FLvsPA$Genus, 
   levels = unique(sigtab.FLvsPA$Genus))
+sigtab.FLvsPA$energy_short <- factor(sigtab.FLvsPA$energy_short,levels=c("org/litho(S,NH4+)/photo(BCHL)","org/litho(S)/photo(BCHL)","org/photo(BCHL)","org/photo(BR)","litho(NH4+)","org(C1)","org","photo(CHL)"))
+
+#set outlier values >5 and <-10 to 5 and -10
+sigtab.FLvsPA[3] <- lapply(sigtab.FLvsPA[3], function(x) ifelse(x>4.99, 4.99, x))
+sigtab.FLvsPA[3] <- lapply(sigtab.FLvsPA[3], function(x) ifelse(x<(-9.99), -9.99, x))
 
 # Plot
 plot.FLvsPA <- ggplot(sigtab.FLvsPA, 
   aes(y = energy_short, x = log2FoldChange, color = C_source, shape = sig, size = abundance)) + 
   xlim(5,-10) +
   geom_vline(xintercept = 0, colour="grey", linetype = "longdash") +
-  geom_hline(yintercept=c(1.5,2.5,3.5,4.5,5.5,6.5,7.5),color="gray95") +
+  geom_hline(yintercept=c(1.5,2.5,3.5,4.5,5.5,6.5,7.5),colour="grey",linetype="dotted") +
   xlab("log2fold FL:PA") + 
   scale_y_discrete(breaks=NULL) +
   geom_jitter(position = position_jitter(height = 0.4),alpha=0.7) + 
@@ -2599,9 +2572,9 @@ plot.FLvsPA.wlegend <- ggplot(sigtab.FLvsPA,
   aes(y = energy_short, x = log2FoldChange, color = C_source, shape = sig, size = abundance)) + 
   xlim(5,-10) +
   geom_vline(xintercept = 0, colour="grey", linetype = "longdash") +
-  geom_hline(yintercept=c(1.5,2.5,3.5,4.5,5.5,6.5,7.5),color="gray95") +
+  geom_hline(yintercept=c(1.5,2.5,3.5,4.5,5.5,6.5,7.5),colour="grey",linetype="dotted") +
   xlab("log2fold FL:PA") + 
-  scale_y_discrete(breaks=NULL) +
+  scale_y_discrete() +
   geom_jitter(position = position_jitter(height = 0.4),alpha=0.7) + 
   scale_shape_manual(name = "p-value", breaks = c("0", "1"), 
                     labels = c("p>0.01", "p<0.01"),
@@ -2614,7 +2587,7 @@ plot.FLvsPA.wlegend <- ggplot(sigtab.FLvsPA,
                                  axis.title.y = element_blank(),  #Set the y-axis title
                                  axis.text.x = element_text(angle=0, colour = "black", 
                                                             vjust=1, hjust = 1, size=7),  #Set the x-axis labels
-                                 axis.text.y = element_blank(),  #Set the y-axis labels
+                                 axis.text.y = element_text(size = 7),  #Set the y-axis labels
                                  legend.title = element_text(size = 8, face="bold"),  #Set the legend title 
                                  legend.text = element_text(size = 8),  #Set the legend text
                                  legend.position = "right",
@@ -2622,196 +2595,19 @@ plot.FLvsPA.wlegend <- ggplot(sigtab.FLvsPA,
                                  panel.grid.major.x = element_blank()) 
 plot.FLvsPA.wlegend
 
-##3. Sp vs Su
-#subset data to exclude Fall
-physeq_dupmerge.prune.spsu <- subset_samples(physeq_dupmerge.prune,Season!="Fa")
-
-# Convert to deseq object, comparing Muskegon Lake vs Lake Michigan, controlling for sason, fraction and Depth
-physeq_dupmerge.prune.SpvsSu.deseq <- phyloseq_to_deseq2(physeq_dupmerge.prune.spsu, ~Depth_C+Lake+Fraction+Season)
-physeq_dupmerge.prune.SpvsSu.deseq = DESeq(physeq_dupmerge.prune.SpvsSu.deseq, test = "Wald", fitType = "parametric", betaPrior=FALSE)
-
-# Summarize results and combine with tax_table and fungroup dataframes
-res = data.frame(results(physeq_dupmerge.prune.SpvsSu.deseq, cooksCutoff = FALSE,contrast=c("Season","Su","Sp")))
-res = data.frame(OTU = row.names(res), res)
-alpha = 1
-sigtab.SpvsSu <-
-  res %>%
-    filter(padj < alpha) 
-sigtab.SpvsSu <- cbind(sigtab.SpvsSu, 
-  as(tax_table(physeq_dupmerge.prune)[sigtab.SpvsSu$OTU, ], "matrix"),fungroupfile[sigtab.SpvsSu$OTU, ])
-
-#calculate average abundance acorss all datasets to scale geom_point in plot
-plotvalue <- data.frame(data.frame(tax_table(physeq_dupmerge))$Species,as.vector(as.numeric(taxa_sums(physeq_dupmerge)/sum(sample_sums(physeq_dupmerge))*100)))
-colnames(plotvalue) <- c("species","abundance")
-row.names(plotvalue) <- plotvalue$species
-plotvalue <- plotvalue[row.names(plotvalue) %in% sigtab.SpvsSu$Species, ]
-sigtab.SpvsSu <- cbind(sigtab.SpvsSu,plotvalue[sigtab.SpvsSu$OTU, ])
-sigtab.SpvsSu$sig <- as.factor((sigtab.SpvsSu$padj<0.01)*1)
-
-# Change genus levels so organized by phylum
-sigtab.SpvsSu <- arrange(sigtab.SpvsSu, energy_short)
-sigtab.SpvsSu$Genus <- factor(sigtab.SpvsSu$Genus, 
-  levels = unique(sigtab.SpvsSu$Genus))
-
-# Plot
-plot.SuvsSp <- ggplot(sigtab.SpvsSu, 
-  aes(y = energy_short, x = log2FoldChange, color = C_source, shape = sig, size = abundance)) + 
-  xlim(10,-10) +
-  geom_vline(xintercept = 0, colour="grey", linetype = "longdash") +
-  geom_hline(yintercept=c(1.5,2.5,3.5,4.5,5.5,6.5,7.5),color="gray95") +
-  xlab("log2fold Summer:Spring") + 
-  scale_y_discrete(breaks=NULL) +
-  geom_jitter(position = position_jitter(height = 0.4),alpha=0.7) + 
-  scale_shape_manual(name = "p-value", breaks = c("0", "1"), 
-                    labels = c("p>0.01", "p<0.01"),
-                    values = c("0" = 21, "1"= 19)) +
-  theme_deseq 
-plot.SuvsSp
-
-##4. Su vs Fa
-#subset data to exclude Fall
-physeq_dupmerge.prune.sufa <- subset_samples(physeq_dupmerge.prune,Season!="Sp")
-
-# Convert to deseq object, comparing Muskegon Lake vs Lake Michigan, controlling for sason, fraction and Depth
-physeq_dupmerge.prune.SuvsFa.deseq <- phyloseq_to_deseq2(physeq_dupmerge.prune.sufa, ~Depth_C+Lake+Fraction+Season)
-physeq_dupmerge.prune.SuvsFa.deseq = DESeq(physeq_dupmerge.prune.SuvsFa.deseq, test = "Wald", fitType = "parametric", betaPrior=FALSE)
-
-# Summarize results and combine with tax_table and fungroup dataframes
-res = data.frame(results(physeq_dupmerge.prune.SuvsFa.deseq, cooksCutoff = FALSE,contrast=c("Season","Su","Fa")))
-res = data.frame(OTU = row.names(res), res)
-alpha = 1
-sigtab.SuvsFa <-
-  res %>%
-    filter(padj < alpha) 
-sigtab.SuvsFa <- cbind(sigtab.SuvsFa, 
-  as(tax_table(physeq_dupmerge.prune)[sigtab.SuvsFa$OTU, ], "matrix"),fungroupfile[sigtab.SuvsFa$OTU, ])
-
-
-#calculate average abundance acorss all datasets to scale geom_point in plot
-plotvalue <- data.frame(data.frame(tax_table(physeq_dupmerge))$Species,as.vector(as.numeric(taxa_sums(physeq_dupmerge)/sum(sample_sums(physeq_dupmerge))*100)))
-colnames(plotvalue) <- c("species","abundance")
-row.names(plotvalue) <- plotvalue$species
-plotvalue <- plotvalue[row.names(plotvalue) %in% sigtab.SuvsFa$Species, ]
-sigtab.SuvsFa <- cbind(sigtab.SuvsFa,plotvalue[sigtab.SuvsFa$OTU, ])
-sigtab.SuvsFa$sig <- as.factor((sigtab.SuvsFa$padj<0.01)*1)
-
-# Change genus levels so organized by phylum
-sigtab.SuvsFa <- arrange(sigtab.SuvsFa, energy_short)
-sigtab.SuvsFa$Genus <- factor(sigtab.SuvsFa$Genus, 
-  levels = unique(sigtab.SuvsFa$Genus))
-
-# Plot
-plot.SuvsFa <- ggplot(sigtab.SuvsFa, 
-  aes(y = energy_short, x = log2FoldChange, color = C_source, shape = sig, size = abundance)) + 
-  xlim(10,-10) +
-  geom_vline(xintercept = 0, colour="grey", linetype = "longdash") +
-  geom_hline(yintercept=c(1.5,2.5,3.5,4.5,5.5,6.5,7.5),color="gray95") +
-  xlab("log2fold Summer:Fall") + 
-  scale_y_discrete(breaks=NULL) +
-  geom_jitter(position = position_jitter(height = 0.4),alpha=0.7) + 
-  scale_shape_manual(name = "p-value", breaks = c("0", "1"), 
-                    labels = c("p>0.01", "p<0.01"),
-                    values = c("0" = 21, "1"= 19)) +
-  theme_deseq 
-plot.SuvsFa
-
-
-##5. S vs D 
-#subset data to exclude mid depth 
-physeq_dupmerge.prune.SvsD <- subset_samples(physeq_dupmerge.prune,Depth_C!="M")
-
-# Convert to deseq object, comparing Muskegon Lake vs Lake Michigan, controlling for sason, fraction and Depth
-physeq_dupmerge.prune.SvsD.deseq <- phyloseq_to_deseq2(physeq_dupmerge.prune.SvsD, ~Lake+Fraction+Season+Depth_C)
-physeq_dupmerge.prune.SvsD.deseq = DESeq(physeq_dupmerge.prune.SvsD.deseq, test = "Wald", fitType = "parametric", betaPrior=FALSE)
-
-# Summarize results and combine with tax_table and fungroup dataframes
-res = data.frame(results(physeq_dupmerge.prune.SvsD.deseq, cooksCutoff = FALSE,contrast=c("Depth_C","S","D")))
-res = data.frame(OTU = row.names(res), res)
-alpha = 1
-sigtab.SvsD <-
-  res %>%
-    filter(padj < alpha) 
-sigtab.SvsD <- cbind(sigtab.SvsD, 
-  as(tax_table(physeq_dupmerge.prune)[sigtab.SvsD$OTU, ], "matrix"),fungroupfile[sigtab.SvsD$OTU, ])
-
-#calculate average abundance acorss all datasets to scale geom_point in plot
-plotvalue <- data.frame(data.frame(tax_table(physeq_dupmerge))$Species,as.vector(as.numeric(taxa_sums(physeq_dupmerge)/sum(sample_sums(physeq_dupmerge))*100)))
-colnames(plotvalue) <- c("species","abundance")
-row.names(plotvalue) <- plotvalue$species
-plotvalue <- plotvalue[row.names(plotvalue) %in% sigtab.SvsD$Species, ]
-sigtab.SvsD <- cbind(sigtab.SvsD,plotvalue[sigtab.SvsD$OTU, ])
-sigtab.SvsD$sig <- as.factor((sigtab.SvsD$padj<0.01)*1)
-
-# Change genus levels so organized by phylum
-sigtab.SvsD <- arrange(sigtab.SvsD, energy_short)
-sigtab.SvsD$Genus <- factor(sigtab.SvsD$Genus, 
-  levels = unique(sigtab.SvsD$Genus))
-
-# Plot
-plot.SvsD <- ggplot(sigtab.SvsD, 
-  aes(y = energy_short, x = log2FoldChange, color = C_source, shape = sig, size = abundance)) + 
-  xlim(5,-10) +
-  geom_vline(xintercept = 0, colour="grey", linetype = "longdash") +
-  geom_hline(yintercept=c(1.5,2.5,3.5,4.5,5.5,6.5,7.5),color="gray95") +
-  xlab("log2fold Surface:Deep") + 
-  scale_y_discrete(breaks=NULL) +
-  geom_jitter(position = position_jitter(height = 0.4),alpha=0.7) + 
-  scale_shape_manual(name = "p-value", breaks = c("0", "1"), 
-                    labels = c("p>0.01", "p<0.01"),
-                    values = c("0" = 21, "1"= 19)) +
-  theme_deseq 
-plot.SvsD
-
-# Plot with legend
-plot.SvsD_wlegend <- ggplot(sigtab.SvsD, 
-  aes(y = energy_short, x = log2FoldChange, color = C_source, shape = sig, size = abundance)) + 
-  xlim(5,-10) +
-  geom_vline(xintercept = 0, colour="grey", linetype = "longdash") +
-  geom_hline(yintercept=c(1.5,2.5,3.5,4.5,5.5,6.5,7.5),color="gray95") +
-  xlab("log2fold Surface:Deep") + 
-  scale_y_discrete(breaks=NULL) +
-  geom_jitter(position = position_jitter(height = 0.4),alpha=0.7) + 
-  scale_shape_manual(name = "p-value", breaks = c("0", "1"), 
-                    labels = c("p>0.01", "p<0.01"),
-                    values = c("0" = 21, "1"= 19)) +
-  theme(plot.title = element_text(face="bold", size=7),  #Set the plot title
-                                 strip.text.x = element_blank(),  #Set the facet titles on x-axis 
-                                 strip.text.y = element_blank(),  #Set the facet titles on x-axis 
-                                 strip.background = element_blank(),  #Set the facet background to no background
-                                 axis.title.x = element_text(face="bold", size=7),  #Set the x-axis title
-                                 axis.title.y = element_blank(),  #Set the y-axis title
-                                 axis.text.x = element_text(angle=0, colour = "black", 
-                                                            vjust=1, hjust = 1, size=7),  #Set the x-axis labels
-                                 axis.text.y = element_blank(),  #Set the y-axis labels
-                                 legend.title = element_text(size = 8, face="bold"),  #Set the legend title 
-                                 legend.text = element_text(size = 8),  #Set the legend text
-                                 legend.position = "top",
-                                 panel.grid.major.y = element_blank(),
-                                 panel.grid.major.x = element_blank() 
-  ); plot.SvsD_wlegend
-
-
 # Plot legend only
-tmp <- ggplot_gtable(ggplot_build(plot.SvsD_wlegend)) 
+tmp <- ggplot_gtable(ggplot_build(plot.FLvsPA.wlegend)) 
 leg <- which(sapply(tmp$grobs, function(x) x$name) == "guide-box") 
 plot.legend <- tmp$grobs[[leg]] 
 
 # Plot Y-axis only
 library(gtable)
-g <- ggplotGrob(plot.SvsD_wlegend)
+g <- ggplotGrob(plot.FLvsPA.wlegend)
 plot.y <- gtable_filter(g, 'axis-l|ylab', trim=F)  # use trim depending on need
 
 ```
 
-``` {r plots by phylum/class}
-##1. LM vs MLB
-## order phyla/classes for display (~by abundance of phyla)
-# Change genus levels so organized by phylum
-sigtab.phyl.LMvsMLB <- arrange(sigtab.LMvsMLB, Phylum)
-sigtab.phyl.LMvsMLB$Phylum <-factor(sigtab.phyl.LMvsMLB$Phylum,levels=c("unclassified","Gemmatimonadetes","Chlorobi","Armatimonadetes","Chloroflexi","Planctomycetes","Verrucomicrobia","Cyanobacteria","Actinobacteria","Sphingobacteria","Cytophagia","Flavobacteria","Bacteroidetes","Deltaproteobacteria","Gammaproteobacteria","Betaproteobacteria","Alphaproteobacteria","Proteobacteria"))
-for(i in 1:length(sigtab.phyl.LMvsMLB$C_source)){
-  sigtab.phyl.LMvsMLB$C_source_sig[i]<-paste(as.character(sigtab.phyl.LMvsMLB$C_source[i]),
-                                  as.character(sigtab.phyl.LMvsMLB$sig[i]))}
+``` {r plots by phylum/class all data combined only for PA vs FL}
 
 theme_deseq2 <- theme(plot.title = element_text(face="bold", size=7),  #Set the plot title
                                  strip.text.x = element_blank(),  #Set the facet titles on x-axis 
@@ -2828,36 +2624,24 @@ theme_deseq2 <- theme(plot.title = element_text(face="bold", size=7),  #Set the 
                                  panel.grid.major.y = element_blank(colour="gray70", linetype = "dash"),
                                  panel.grid.major.x = element_blank())
 
-# Plot
-plot.phylLMvsMLB <- ggplot(sigtab.phyl.LMvsMLB, 
-  aes(y = Phylum, x = log2FoldChange, color = energy_short, shape = C_source_sig, size = abundance)) + 
-  xlim(10,-10) +
-  geom_vline(xintercept = 0, colour="grey", linetype = "longdash") +
-  geom_hline(yintercept=c(1.5,2.5,3.5,4.5,5.5,6.5,7.5,8.5,9.5,10.5,11.5,12.5,13.5,14.5,15.5,16.5,17.5),color="gray95") +
-  xlab("log2fold Lake MI:Muskegon Lake") + 
-  scale_y_discrete(breaks=NULL) +
-  scale_shape_manual(name = "C source and p-value", breaks = c("autotroph 0", "heterotroph 0","mixotroph 0","autotroph 1", "heterotroph 1","mixotroph 1"), 
-                     labels = c("autotroph, p > 0.01", "heterotroph, p > 0.01","mixotroph, p > 0.01","autotroph, p < 0.01", "heterotroph, p < 0.01","mixotroph, p < 0.01"),
-                     values = c("autotroph 0" = 1, "heterotroph 0" = 0,"mixotroph 0" = 2,"autotroph 1" = 19, "heterotroph 1" = 15,"mixotroph 1" = 17)) +
-  geom_jitter(position = position_jitter(height = 0.4),alpha=0.7) +
-  theme_deseq2
-plot.phylLMvsMLB 
-#View(sigtab.phyl.LMvsMLB)
-
-##2. FL vs PA
+## FL vs PA
 # Change genus levels so organized by phylum
 sigtab.phyl.FLvsPA <- arrange(sigtab.FLvsPA, Phylum)
 sigtab.phyl.FLvsPA$Phylum <-factor(sigtab.phyl.FLvsPA$Phylum,levels=c("unclassified","Gemmatimonadetes","Chlorobi","Armatimonadetes","Chloroflexi","Planctomycetes","Verrucomicrobia","Cyanobacteria","Actinobacteria","Sphingobacteria","Cytophagia","Flavobacteria","Bacteroidetes","Deltaproteobacteria","Gammaproteobacteria","Betaproteobacteria","Alphaproteobacteria","Proteobacteria"))
+sigtab.phyl.FLvsPA$energy_short <- factor(sigtab.phyl.FLvsPA$energy_short,levels=c("org/litho(S,NH4+)/photo(BCHL)","org/litho(S)/photo(BCHL)","org/photo(BCHL)","org/photo(BR)","litho(NH4+)","org(C1)","org","photo(CHL)"))
 for(i in 1:length(sigtab.phyl.FLvsPA$C_source)){
   sigtab.phyl.FLvsPA$C_source_sig[i]<-paste(as.character(sigtab.phyl.FLvsPA$C_source[i]),
                                   as.character(sigtab.phyl.FLvsPA$sig[i]))}
+#set outlier values >5 and <-10 to 5 and -10
+sigtab.phyl.FLvsPA[3] <- lapply(sigtab.phyl.FLvsPA[3], function(x) ifelse(x>4.99, 4.99, x))
+sigtab.phyl.FLvsPA[3] <- lapply(sigtab.phyl.FLvsPA[3], function(x) ifelse(x<(-9.99), -9.99, x))
 
 # Plot
 plot.phylFLvsPA <- ggplot(sigtab.phyl.FLvsPA, 
   aes(y = Phylum, x = log2FoldChange, color = energy_short, shape = C_source_sig, size = abundance)) + 
   xlim(5,-10) +
   geom_vline(xintercept = 0, colour="grey", linetype = "longdash") +
-  geom_hline(yintercept=c(1.5,2.5,3.5,4.5,5.5,6.5,7.5,8.5,9.5,10.5,11.5,12.5,13.5,14.5,15.5,16.5,17.5),color="gray95") +
+  geom_hline(yintercept=c(1.5,2.5,3.5,4.5,5.5,6.5,7.5,8.5,9.5,10.5,11.5,12.5,13.5,14.5,15.5,16.5,17.5),colour="grey", linetype = "dotted") +
   xlab("log2fold FL:PA") + 
   scale_y_discrete(breaks=NULL) +
   scale_shape_manual(name = "C source and p-value", breaks = c("autotroph 0", "heterotroph 0","mixotroph 0","autotroph 1", "heterotroph 1","mixotroph 1"), 
@@ -2867,87 +2651,13 @@ plot.phylFLvsPA <- ggplot(sigtab.phyl.FLvsPA,
   theme_deseq2
 plot.phylFLvsPA
 
-
-##3. Sp vs Su
-# Change genus levels so organized by phylum
-sigtab.phyl.SpvsSu <- arrange(sigtab.SpvsSu, Phylum)
-sigtab.phyl.SpvsSu$Phylum <-factor(sigtab.phyl.SpvsSu$Phylum,levels=c("unclassified","Gemmatimonadetes","Chlorobi","Armatimonadetes","Chloroflexi","Planctomycetes","Verrucomicrobia","Cyanobacteria","Actinobacteria","Sphingobacteria","Cytophagia","Flavobacteria","Bacteroidetes","Deltaproteobacteria","Gammaproteobacteria","Betaproteobacteria","Alphaproteobacteria","Proteobacteria"))
-for(i in 1:length(sigtab.phyl.SpvsSu$C_source)){
-  sigtab.phyl.SpvsSu$C_source_sig[i]<-paste(as.character(sigtab.phyl.SpvsSu$C_source[i]),
-                                  as.character(sigtab.phyl.SpvsSu$sig[i]))}
-
-
-# Plot
-plot.phylSuvsSp <- ggplot(sigtab.phyl.SpvsSu, 
-  aes(y = Phylum, x = log2FoldChange, color = energy_short, shape = C_source_sig, size = abundance)) + 
-  xlim(10,-10) +
-  geom_vline(xintercept = 0, colour="grey", linetype = "longdash") +
-  geom_hline(yintercept=c(1.5,2.5,3.5,4.5,5.5,6.5,7.5,8.5,9.5,10.5,11.5,12.5,13.5,14.5,15.5,16.5,17.5),color="gray95") +
-  xlab("log2fold Summer:Spring") + 
-  scale_y_discrete(breaks=NULL) +
-  scale_shape_manual(name = "C source and p-value", breaks = c("autotroph 0", "heterotroph 0","mixotroph 0","autotroph 1", "heterotroph 1","mixotroph 1"), 
-                     labels = c("autotroph, p > 0.01", "heterotroph, p > 0.01","mixotroph, p > 0.01","autotroph, p < 0.01", "heterotroph, p < 0.01","mixotroph, p < 0.01"),
-                     values = c("autotroph 0" = 1, "heterotroph 0" = 0,"mixotroph 0" = 2,"autotroph 1" = 19, "heterotroph 1" = 15,"mixotroph 1" = 17)) +
-  geom_jitter(position = position_jitter(height = 0.4),alpha=0.7) +
-  theme_deseq2
-plot.phylSuvsSp
-
-##4. Su vs Fa
-# Change genus levels so organized by phylum
-sigtab.phyl.SuvsFa <- arrange(sigtab.SuvsFa, Phylum)
-sigtab.phyl.SuvsFa$Phylum <-factor(sigtab.phyl.SuvsFa$Phylum,levels=c("unclassified","Gemmatimonadetes","Chlorobi","Armatimonadetes","Chloroflexi","Planctomycetes","Verrucomicrobia","Cyanobacteria","Actinobacteria","Sphingobacteria","Cytophagia","Flavobacteria","Bacteroidetes","Deltaproteobacteria","Gammaproteobacteria","Betaproteobacteria","Alphaproteobacteria","Proteobacteria"))
-for(i in 1:length(sigtab.phyl.SuvsFa$C_source)){
-  sigtab.phyl.SuvsFa$C_source_sig[i]<-paste(as.character(sigtab.phyl.SuvsFa$C_source[i]),
-                                  as.character(sigtab.phyl.SuvsFa$sig[i]))}
-
-# Plot
-plot.phylSuvsFa <- ggplot(sigtab.phyl.SuvsFa, 
-  aes(y = Phylum, x = log2FoldChange, color = energy_short, shape = C_source_sig, size = abundance)) + 
-  xlim(10,-10) +
-  geom_vline(xintercept = 0, colour="grey", linetype = "longdash") +
-  geom_hline(yintercept=c(1.5,2.5,3.5,4.5,5.5,6.5,7.5,8.5,9.5,10.5,11.5,12.5,13.5,14.5,15.5,16.5,17.5),color="gray95") +
-  xlab("log2fold Summer:Fall") + 
-  scale_y_discrete(breaks=NULL) +
-  scale_shape_manual(name = "C source and p-value", breaks = c("autotroph 0", "heterotroph 0","mixotroph 0","autotroph 1", "heterotroph 1","mixotroph 1"), 
-                     labels = c("autotroph, p > 0.01", "heterotroph, p > 0.01","mixotroph, p > 0.01","autotroph, p < 0.01", "heterotroph, p < 0.01","mixotroph, p < 0.01"),
-                     values = c("autotroph 0" = 1, "heterotroph 0" = 0,"mixotroph 0" = 2,"autotroph 1" = 19, "heterotroph 1" = 15,"mixotroph 1" = 17)) +
-  geom_jitter(position = position_jitter(height = 0.4),alpha=0.7) +
-  theme_deseq2
-
-plot.phylSuvsFa
-
-
-##5. S vs D 
-# Change genus levels so organized by phylum
-sigtab.phyl.SvsD <- arrange(sigtab.SvsD, Phylum)
-sigtab.phyl.SvsD$Phylum <-factor(sigtab.phyl.SvsD$Phylum,levels=c("unclassified","Gemmatimonadetes","Chlorobi","Armatimonadetes","Chloroflexi","Planctomycetes","Verrucomicrobia","Cyanobacteria","Actinobacteria","Sphingobacteria","Cytophagia","Flavobacteria","Bacteroidetes","Deltaproteobacteria","Gammaproteobacteria","Betaproteobacteria","Alphaproteobacteria","Proteobacteria"))
-for(i in 1:length(sigtab.phyl.SvsD$C_source)){
-  sigtab.phyl.SvsD$C_source_sig[i]<-paste(as.character(sigtab.phyl.SvsD$C_source[i]),
-                                  as.character(sigtab.phyl.SvsD$sig[i]))}
-
-
-# Plot
-plot.phylSvsD <- ggplot(sigtab.phyl.SvsD, 
-  aes(y = Phylum, x = log2FoldChange, color = energy_short, shape = C_source_sig, size = abundance)) + 
-  xlim(5,-10) +
-  geom_vline(xintercept = 0, colour="grey", linetype = "longdash") +
-  geom_hline(yintercept=c(1.5,2.5,3.5,4.5,5.5,6.5,7.5,8.5,9.5,10.5,11.5,12.5,13.5,14.5,15.5,16.5,17.5),color="gray95") +
-  xlab("log2fold Suface:Deep") + 
-  scale_y_discrete(breaks=NULL) +
-  scale_shape_manual(name = "C source and p-value", breaks = c("autotroph 0", "heterotroph 0","mixotroph 0","autotroph 1", "heterotroph 1","mixotroph 1"), 
-                     labels = c("autotroph, p > 0.01", "heterotroph, p > 0.01","mixotroph, p > 0.01","autotroph, p < 0.01", "heterotroph, p < 0.01","mixotroph, p < 0.01"),
-                     values = c("autotroph 0" = 1, "heterotroph 0" = 0,"mixotroph 0" = 2,"autotroph 1" = 19, "heterotroph 1" = 15,"mixotroph 1" = 17)) +
-  geom_jitter(position = position_jitter(height = 0.4),alpha=0.7) +
-  theme_deseq2
-
-plot.phylSvsD
-
 # Plot with legend
-pdf(file="Figures/Rplot_deseq_fungroups_phylum_SvsD_wlegend.pdf", width= 3.5, height=10, pointsize= 8, colormodel="cmyk", useDingbats = FALSE)
-plot.phylSvsD_wlegend <- ggplot(sigtab.phyl.SvsD, 
+pdf(file="Figures/Rplot_deseq_fungroups_phylum_PAvsFL_wlegend.pdf", width= 3.5, height=10, pointsize= 8, colormodel="cmyk", useDingbats = FALSE)
+plot.phylFLvsPA_wlegend <- ggplot(sigtab.phyl.FLvsPA, 
   aes(y = Phylum, x = log2FoldChange, color = energy_short, shape = C_source_sig, size = abundance)) + 
   xlim(5,-10) +
   geom_vline(xintercept = 0, colour="grey", linetype = "longdash") +
+#  geom_hline(yintercept=c(1.5,2.5,3.5,4.5,5.5,6.5,7.5,8.5,9.5,10.5,11.5,12.5,13.5,14.5,15.5,16.5,17.5),colour="grey", linetype = "dotted") +
   xlab("log2fold Surface:Deep") + 
   scale_shape_manual(name = "C source and p-value", breaks = c("autotroph 0", "heterotroph 0","mixotroph 0","autotroph 1", "heterotroph 1","mixotroph 1"), 
                      labels = c("autotroph, p > 0.01", "heterotroph, p > 0.01","mixotroph, p > 0.01","autotroph, p < 0.01", "heterotroph, p < 0.01","mixotroph, p < 0.01"),
@@ -2955,7 +2665,7 @@ plot.phylSvsD_wlegend <- ggplot(sigtab.phyl.SvsD,
   geom_jitter(position = position_jitter(height = 0.4),alpha=0.7)  + 
   theme(plot.title = element_text(face="bold", size=7),  #Set the plot title
                                  strip.text.x = element_blank(),  #Set the facet titles on x-axis 
-                                 strip.text.y = element_blank(),  #Set the facet titles on x-axis 
+                                 strip.text.y = element_text(face="bold", size=7),  #Set the facet titles on x-axis 
                                  strip.background = element_blank(),  #Set the facet background to no background
                                  axis.title.x = element_text(face="bold", size=7),  #Set the x-axis title
                                  axis.title.y = element_text(face="bold", size=7),  #Set the y-axis title
@@ -2968,93 +2678,33 @@ plot.phylSvsD_wlegend <- ggplot(sigtab.phyl.SvsD,
                                  legend.position = "right",
                                  panel.grid.major.y = element_blank(),
                                  panel.grid.major.x = element_blank() 
-  ); plot.phylSvsD_wlegend
+  ); plot.phylFLvsPA_wlegend
 dev.off()
 
 # Plot legend only
-tmp <- ggplot_gtable(ggplot_build(plot.phylSvsD_wlegend)) 
+tmp <- ggplot_gtable(ggplot_build(plot.phylFLvsPA_wlegend)) 
 leg <- which(sapply(tmp$grobs, function(x) x$name) == "guide-box") 
 plot.phyllegend <- tmp$grobs[[leg]] 
 
 ```
 
-```{r final figures}
+```{r final figure 5 PA vs FL betadiv + DEseq and Fig. S2}
 library(grid)
 library(gridExtra)
 
-pdf(file="Figures/Rplot_deseq_fungroups_noY.pdf", width= 7, height=7, pointsize= 8, colormodel="cmyk", useDingbats = FALSE)
-grid.arrange(plot.LMvsMLB,plot.legend,plot.SuvsSp,plot.SuvsFa,plot.FLvsPA,plot.SvsD, ncol=2)
+
+pdf(file="Figures/Rplot_BetaDiv_boxplot_PAvsFL+Deseq_combined.pdf", width= 7, height=3.5, pointsize= 8, colormodel="cmyk", useDingbats = FALSE)
+grid.arrange(bray_wifrac_boxplot,plot.FLvsPA.wlegend,ncol=2)
 dev.off()
 
-pdf(file="Figures/Rplot_deseq_fungroups_phylum_noY.pdf", width= 7, height=10, pointsize= 8, colormodel="cmyk", useDingbats = FALSE)
-grid.arrange(plot.phylLMvsMLB,plot.phyllegend,plot.phylSuvsSp,plot.phylSuvsFa,plot.phylFLvsPA,plot.phylSvsD, ncol=2)
+pdf(file="Figures/Rplot_DeseqPAvsFL_phylum_combined.pdf", width= 7, height=3.5, pointsize= 8, colormodel="cmyk", useDingbats = FALSE)
+grid.arrange(plot.phylFLvsPA,plot.phylFLvsPA_wlegend,ncol=2)
 dev.off()
 
-
-```
-
-```{r plot specific OTUs}
-#Michelle's function to plot otu data
-plot_otus <- function(df, otu, taxrank) {
-ggplot(df,aes(x = Season, y = Abundance, group = StatFrac, color = Station, shape = Station, linetype = Fraction, fill = StatFrac)) +
-geom_point(size = 2) +
-geom_line(size = 0.7) +
-ggtitle(paste(df[1, taxrank], otu)) +
-scale_shape_manual(name = "station", breaks = c("MLB", "MM15",  "MM110"), 
-                     labels = c("MLB", "M15",  "M110"),
-                     values = c("MLB" = 21, "MM15" = 22, "MM110" = 24)) +
-scale_color_manual(name = "station", breaks = c("MLB","MM15","MM110"), 
-                     labels = c("MLB","M15","M110"),
-                     values = c("MLB" = "darkgreen", "MM15" = "green", "MM110" = "blue")) +
-scale_fill_manual(name = "fraction", breaks = c("MLB B","MLB E","MM15 B","MM15 E","MM110 B","MM110 E"), 
-                     labels = c("MLB FL","MLB PA","MM15 FL","MM15 PA","MM110 FL","MM110 PA"),
-                     values = c("MLB B" = "darkgreen", "MLB E" = "white", "MM15 B" = "green", "MM15 E" = "white", "MM110 B" = "blue", "MM110 E" = "white")) +
-facet_grid(Depth_C ~.) +
-ylab("rel. abund") + #scale_color_manual(values = station_colors) +
-scale_x_discrete(breaks =c("Sp","Su","Fa"),drop = FALSE) +
-theme(axis.text.x = element_text(angle = 45, vjust=1, hjust = 1, size=7), 
-  axis.title.y = element_text(size = 7),
-  axis.title.x = element_text(size = 7),
-  axis.text.y = element_text(size = 7),
-  legend.position = "none",plot.title =element_text(size = 7, face = "bold")
-)
-}
-
-# Function to order sample levels correctly
-order_samples <- function(df) {
-  df$xvalue <-factor(df$xvalue, levels =c("Sp S","Su S","Fa S","Su M","Sp D","Su D","Fa D"))
-  df$StatFrac <-factor(df$StatFrac, levels =c("MLB B","MLB E","MM15 B","MM15 E","MM110 B","MM110 E"))
-  df$Season <-factor(df$Season, levels =c("Sp","Su","Fa"))
-  df$Depth_C <-factor(df$Depth_C, levels =c("S","M","D"))
-  return(df)
-}
-
-#prep dataframe
-select <-physeq_dupmerge.prune %>%
-  transform_sample_counts(function(x) {x/sum(x)}) %>%
-  subset_taxa(Tribe == "LD12"|Tribe == "Lhab-A1"|Genus == "Nitrosospira"|Phylum =="Chloroflexi") %>%
-  psmelt()
-
-select$xvalue <- paste(select$Season,select$Depth_C)
-select$StatFrac <- paste(select$Station,select$Fraction)
-select <- order_samples(select)
-
-select_names <-as.list(levels(select$Species))
-names(select_names) <-levels(select$Species)
-
-select <- select[!(select$Station!="MLB" & select$Depth_C=="S" & select$DayNight=="N"),]
-  
-select_plots <-lapply(select_names,
-  function(otu) {
-    df_otu <-filter(select, OTU == otu)
-    plot <- plot_otus(df = df_otu, otu = otu, taxrank = "Tribe")
-    return(plot)
-  }
-)
-
-pdf(file="Figures/Rplot_lineplots.pdf", width= 7, height=7, pointsize= 8, colormodel="cmyk", useDingbats = FALSE)
-grid.arrange(select_plots$Otu000002, select_plots$Otu105919, select_plots$Otu000119,select_plots$Otu000021,ncol = 2)
+pdf(file="Figures/Rplot_fctgroups_Yaxis.pdf", width= 3.5, height=3.5, pointsize= 8, colormodel="cmyk", useDingbats = FALSE)
+grid.arrange(plot.FLvsPA.wlegend,ncol=1)
 dev.off()
+
 ```
 
 ```{r Deseq analysis and plots by functional group FL only}
@@ -3093,6 +2743,8 @@ sigtab.FL.LMvsMLB$Genus <- factor(sigtab.FL.LMvsMLB$Genus,
 #set logfoldchange values > 10 to 10 and < -10 to -10
 sigtab.FL.LMvsMLB[3] <- lapply(sigtab.FL.LMvsMLB[3], function(x) ifelse(x>9.99, 9.99, x))
 sigtab.FL.LMvsMLB[3] <- lapply(sigtab.FL.LMvsMLB[3], function(x) ifelse(x<(-9.99), -9.99, x))
+
+sigtab.FL.LMvsMLB$energy_short <- factor(sigtab.FL.LMvsMLB$energy_short,levels=c("org/litho(S,NH4+)/photo(BCHL)","org/litho(S)/photo(BCHL)","org/photo(BCHL)","org/photo(BR)","litho(NH4+)","org(C1)","org","photo(CHL)"))
 
 # Plot
 plot.LMvsMLB.FL <- ggplot(sigtab.FL.LMvsMLB, 
@@ -3144,6 +2796,8 @@ sigtab.FL.SpvsSu$Genus <- factor(sigtab.FL.SpvsSu$Genus,
 sigtab.FL.SpvsSu[3] <- lapply(sigtab.FL.SpvsSu[3], function(x) ifelse(x>9.99, 9.99, x))
 sigtab.FL.SpvsSu[3] <- lapply(sigtab.FL.SpvsSu[3], function(x) ifelse(x<(-9.99), -9.99, x))
 
+sigtab.FL.SpvsSu$energy_short <- factor(sigtab.FL.SpvsSu$energy_short,levels=c("org/litho(S,NH4+)/photo(BCHL)","org/litho(S)/photo(BCHL)","org/photo(BCHL)","org/photo(BR)","litho(NH4+)","org(C1)","org","photo(CHL)"))
+
 # Plot
 plot.SuvsSp.FL <- ggplot(sigtab.FL.SpvsSu, 
   aes(y = energy_short, x = log2FoldChange, color = C_source, shape = sig, size = abundance)) + 
@@ -3194,6 +2848,8 @@ sigtab.FL.SuvsFa$Genus <- factor(sigtab.FL.SuvsFa$Genus,
 sigtab.FL.SuvsFa[3] <- lapply(sigtab.FL.SuvsFa[3], function(x) ifelse(x>9.99, 9.99, x))
 sigtab.FL.SuvsFa[3] <- lapply(sigtab.FL.SuvsFa[3], function(x) ifelse(x<(-9.99), -9.99, x))
 
+sigtab.FL.SuvsFa$energy_short <- factor(sigtab.FL.SuvsFa$energy_short,levels=c("org/litho(S,NH4+)/photo(BCHL)","org/litho(S)/photo(BCHL)","org/photo(BCHL)","org/photo(BR)","litho(NH4+)","org(C1)","org","photo(CHL)"))
+
 # Plot
 plot.SuvsFa.FL <- ggplot(sigtab.FL.SuvsFa, 
   aes(y = energy_short, x = log2FoldChange, color = C_source, shape = sig, size = abundance)) + 
@@ -3243,7 +2899,9 @@ sigtab.FL.SvsD$Genus <- factor(sigtab.FL.SvsD$Genus,
 #set logfoldchange values > 10 to 10 and < -10 to -10
 sigtab.FL.SvsD[3] <- lapply(sigtab.FL.SvsD[3], function(x) ifelse(x>9.99, 9.99, x))
 sigtab.FL.SvsD[3] <- lapply(sigtab.FL.SvsD[3], function(x) ifelse(x<(-9.99), -9.99, x))
-View(sigtab.FL.SvsD)
+
+sigtab.FL.SvsD$energy_short <- factor(sigtab.FL.SvsD$energy_short,levels=c("org/litho(S,NH4+)/photo(BCHL)","org/litho(S)/photo(BCHL)","org/photo(BCHL)","org/photo(BR)","litho(NH4+)","org(C1)","org","photo(CHL)"))
+
 # Plot
 plot.SvsD.FL <- ggplot(sigtab.FL.SvsD, 
   aes(y = energy_short, x = log2FoldChange, color = C_source, shape = sig, size = abundance)) + 
@@ -3297,6 +2955,8 @@ sigtab.PA.LMvsMLB$Genus <- factor(sigtab.PA.LMvsMLB$Genus,
 sigtab.PA.LMvsMLB[3] <- lapply(sigtab.PA.LMvsMLB[3], function(x) ifelse(x>9.99, 9.99, x))
 sigtab.PA.LMvsMLB[3] <- lapply(sigtab.PA.LMvsMLB[3], function(x) ifelse(x<(-9.99), -9.99, x))
 
+sigtab.PA.LMvsMLB$energy_short <- factor(sigtab.PA.LMvsMLB$energy_short,levels=c("org/litho(S,NH4+)/photo(BCHL)","org/litho(S)/photo(BCHL)","org/photo(BCHL)","org/photo(BR)","litho(NH4+)","org(C1)","org","photo(CHL)"))
+
 # Plot
 plot.LMvsMLB.PA <- ggplot(sigtab.PA.LMvsMLB, 
   aes(y = energy_short, x = log2FoldChange, color = C_source, shape = sig, size = abundance)) + 
@@ -3346,6 +3006,8 @@ sigtab.PA.SpvsSu$Genus <- factor(sigtab.PA.SpvsSu$Genus,
 #set logfoldchange values > 10 to 10 and < -10 to -10
 sigtab.PA.SpvsSu[3] <- lapply(sigtab.PA.SpvsSu[3], function(x) ifelse(x>9.99, 9.99, x))
 sigtab.PA.SpvsSu[3] <- lapply(sigtab.PA.SpvsSu[3], function(x) ifelse(x<(-9.99), -9.99, x))
+
+sigtab.PA.SpvsSu$energy_short <- factor(sigtab.PA.SpvsSu$energy_short,levels=c("org/litho(S,NH4+)/photo(BCHL)","org/litho(S)/photo(BCHL)","org/photo(BCHL)","org/photo(BR)","litho(NH4+)","org(C1)","org","photo(CHL)"))
 
 # Plot
 plot.SuvsSp.PA <- ggplot(sigtab.PA.SpvsSu, 
@@ -3397,6 +3059,8 @@ sigtab.PA.SuvsFa$Genus <- factor(sigtab.PA.SuvsFa$Genus,
 sigtab.PA.SuvsFa[3] <- lapply(sigtab.PA.SuvsFa[3], function(x) ifelse(x>9.99, 9.99, x))
 sigtab.PA.SuvsFa[3] <- lapply(sigtab.PA.SuvsFa[3], function(x) ifelse(x<(-9.99), -9.99, x))
 
+sigtab.PA.SuvsFa$energy_short <- factor(sigtab.PA.SuvsFa$energy_short,levels=c("org/litho(S,NH4+)/photo(BCHL)","org/litho(S)/photo(BCHL)","org/photo(BCHL)","org/photo(BR)","litho(NH4+)","org(C1)","org","photo(CHL)"))
+
 # Plot
 plot.SuvsFa.PA <- ggplot(sigtab.PA.SuvsFa, 
   aes(y = energy_short, x = log2FoldChange, color = C_source, shape = sig, size = abundance)) + 
@@ -3446,6 +3110,8 @@ sigtab.PA.SvsD$Genus <- factor(sigtab.PA.SvsD$Genus,
 #set logfoldchange values > 10 to 10 and < -10 to -10
 sigtab.PA.SvsD[3] <- lapply(sigtab.PA.SvsD[3], function(x) ifelse(x>9.99, 9.99, x))
 sigtab.PA.SvsD[3] <- lapply(sigtab.PA.SvsD[3], function(x) ifelse(x<(-9.99), -9.99, x))
+
+sigtab.PA.SvsD$energy_short <- factor(sigtab.PA.SvsD$energy_short,levels=c("org/litho(S,NH4+)/photo(BCHL)","org/litho(S)/photo(BCHL)","org/photo(BCHL)","org/photo(BR)","litho(NH4+)","org(C1)","org","photo(CHL)"))
 
 # Plot
 plot.SvsD.PA <- ggplot(sigtab.PA.SvsD, 
@@ -3638,18 +3304,8 @@ plot.phyllegend <- tmp$grobs[[leg]]
 
 ```
 
-```{r final figure PA vs FL betadiv + DEseq}
-library(grid)
-library(gridExtra)
 
-
-pdf(file="Figures/Rplot_BetaDiv_boxplot_PAvsFL+Deseq_combined.pdf", width= 7, height=3.5, pointsize= 8, colormodel="cmyk", useDingbats = FALSE)
-grid.arrange(bray_wifrac_boxplot,plot.FLvsPA.wlegend,ncol=2)
-dev.off()
-
-```
-
-```{r final figures by fraction}
+```{r final figure 6 + S3 by fraction}
 library(grid)
 library(gridExtra)
 
@@ -3657,12 +3313,96 @@ pdf(file="Figures/Rplot_deseq_fungroups_noY_byfraction.pdf", width= 7, height=12
 grid.arrange(plot.LMvsMLB.FL,plot.LMvsMLB.PA,plot.SuvsSp.FL,plot.SuvsSp.PA,plot.SuvsFa.FL,plot.SuvsFa.PA,plot.SvsD.FL,plot.SvsD.PA,plot.legend, ncol=2)
 dev.off()
 
+#for annotating, view table to identify taxa:
+View(sigtab.FL.LMvsMLB)
+View(sigtab.FL.SpvsSu)
+View(sigtab.FL.SuvsFa)
+View(sigtab.FL.SvsD)
+View(sigtab.PA.LMvsMLB)
+View(sigtab.PA.SpvsSu)
+View(sigtab.PA.SuvsFa)
+View(sigtab.PA.SvsD)
+
 pdf(file="Figures/Rplot_deseq_fungroups_phylum_noY.pdf", width= 7, height=10, pointsize= 8, colormodel="cmyk", useDingbats = FALSE)
 grid.arrange(plot.phylLMvsMLB,plot.phyllegend,plot.phylSuvsSp,plot.phylSuvsFa,plot.phylFLvsPA,plot.phylSvsD, ncol=2)
 dev.off()
 
-
 ```
+
+```{r Figure S4: plot specific OTUs}
+#Michelle's function to plot otu data
+plot_otus <- function(df, otu, taxrank) {
+ggplot(df,aes(x = Season, y = Abundance, group = StatFrac, color = Station, shape = Station, linetype = Fraction, fill = StatFrac)) +
+geom_point(size = 2) +
+geom_line(size = 0.7) +
+ggtitle(paste(df[1, taxrank], otu)) +
+scale_shape_manual(name = "station", breaks = c("MLB", "MM15",  "MM110"), 
+                     labels = c("MLB", "M15",  "M110"),
+                     values = c("MLB" = 21, "MM15" = 22, "MM110" = 24)) +
+scale_color_manual(name = "station", breaks = c("MLB","MM15","MM110"), 
+                     labels = c("MLB","M15","M110"),
+                     values = c("MLB" = "darkgreen", "MM15" = "green", "MM110" = "blue")) +
+scale_fill_manual(name = "fraction", breaks = c("MLB B","MLB E","MM15 B","MM15 E","MM110 B","MM110 E"), 
+                     labels = c("MLB FL","MLB PA","MM15 FL","MM15 PA","MM110 FL","MM110 PA"),
+                     values = c("MLB B" = "darkgreen", "MLB E" = "white", "MM15 B" = "green", "MM15 E" = "white", "MM110 B" = "blue", "MM110 E" = "white")) +
+facet_grid(Depth_C ~.) +
+ylab("rel. abund") + 
+scale_x_discrete(breaks =c("Sp","Su","Fa"),drop = FALSE) +
+theme(axis.text.x = element_blank(), 
+  axis.text.y = element_text(size = 7),
+  strip.text.y = element_blank(),  #Set the facet titles on x-axis 
+  axis.title.x = element_blank(),
+  axis.title.y = element_blank(),
+  legend.position = "none",plot.title =element_text(size = 7, face = "bold")
+)
+}
+
+# Function to order sample levels correctly
+order_samples <- function(df) {
+  df$xvalue <-factor(df$xvalue, levels =c("Sp S","Su S","Fa S","Su M","Sp D","Su D","Fa D"))
+  df$StatFrac <-factor(df$StatFrac, levels =c("MLB B","MLB E","MM15 B","MM15 E","MM110 B","MM110 E"))
+  df$Season <-factor(df$Season, levels =c("Sp","Su","Fa"))
+  df$Depth_C <-factor(df$Depth_C, levels =c("S","M","D"))
+  return(df)
+}
+
+#prep dataframe
+physeq_dupmerge.prune.noM<-subset_samples(physeq_dupmerge.prune,Depth_C!="M")
+select <-physeq_dupmerge.prune.noM %>%
+  transform_sample_counts(function(x) {x/sum(x)}) %>%
+  subset_taxa(Tribe == "LD12"|Tribe == "Lhab-A1"|Genus == "Nitrosospira"|Phylum =="Chloroflexi"|Genus == "Pnec"|Tribe == "Algor"|Species=="otu000019"|Species=="otu000022"|Tribe == "Algor"|Tribe == "Aquir"|Tribe == "AcI-B1"|Tribe == "LD28"|Family == "LD19"|Family == "Methylophilaceae"|Order=="Methylococcales") %>%
+  psmelt()
+
+select$xvalue <- paste(select$Season,select$Depth_C)
+select$StatFrac <- paste(select$Station,select$Fraction)
+select <- order_samples(select)
+
+select_names <-as.list(levels(select$Species))
+names(select_names) <-levels(select$Species)
+
+select <- select[!(select$Station!="MLB" & select$Depth_C=="S" & select$DayNight=="N"),]
+  
+select_plots <-lapply(select_names,
+  function(otu) {
+    df_otu <-filter(select, OTU == otu)
+    plot <- plot_otus(df = df_otu, otu = otu, taxrank = "Phylum")
+    return(plot)
+  }
+)
+
+blank <- grid.rect(gp=gpar(col="white"))
+
+pdf(file="Figures/Rplot_lineplots.pdf", width= 8.5, height=11, pointsize= 8, colormodel="cmyk", useDingbats = FALSE)
+grid.arrange(blank,select_plots$Otu000007,select_plots$Otu000008,select_plots$Otu000073,select_plots$Otu000081,select_plots$Otu000460,
+             select_plots$Otu000005,select_plots$Otu000010,
+             select_plots$Otu000119,
+             select_plots$Otu000002,select_plots$Otu000021,
+             select_plots$Otu000049,select_plots$Otu105848,select_plots$Otu105854,select_plots$Otu106400,
+             select_plots$Otu105919,select_plots$Otu105948,select_plots$Otu105979,
+             ncol = 3)
+dev.off()
+```
+
 ##Table 3: BIOENV analysis
 ```{r bioenv analysis}
 physeq_dupmerge.prune.envsub <-subset_samples(physeq_dupmerge.prune,Duplicates=="Sp13.ED.MM15.SD.1"|Duplicates=="Sp13.ED.MM110.SD.1"|Duplicates=="Sp13.ED.MM110.SN.1"|Duplicates=="Sp13.ED.MM15.SN.1"|Duplicates=="Su13.ED.MM15.SN.1"|Duplicates=="Su13.ED.MM15.SD.1"|Duplicates=="Su13.ED.MM110.DCMD.1"|Duplicates=="Su13.ED.MM110.SD.1"|Duplicates=="Su13.ED.MM110.SN.1"|Duplicates=="Fa13.ED.MM15.SN.1"|Duplicates=="Fa13.ED.MM15.SD.1"|Duplicates=="Fa13.ED.MM110.DN.1"|Duplicates=="Fa13.ED.MM110.SD.1"|Duplicates=="Fa13.ED.MM110.SN.1"|Duplicates=="Sp13.BD.MM15.SD.1"|Duplicates=="Sp13.BD.MM110.SD.1"|Duplicates=="Sp13.BD.MM110.SN.1"|Duplicates=="Sp13.BD.MM15.SN.1"|Duplicates=="Su13.BD.MM15.SN.1"|Duplicates=="Su13.BD.MM15.SD.1"|Duplicates=="Su13.BD.MM110.DCMD.1"|Duplicates=="Su13.BD.MM110.DN.1"|Duplicates=="Su13.BD.MM110.SD.1"|Duplicates=="Su13.BD.MM110.SN.1"|Duplicates=="Fa13.BD.MM15.SN.1"|Duplicates=="Fa13.BD.MM15.SD.1"|Duplicates=="Fa13.BD.MM110.DN.1"|Duplicates=="Fa13.BD.MM110.SD.1"|Duplicates=="Fa13.BD.MM110.SN.1")
