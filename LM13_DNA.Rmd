@@ -177,7 +177,7 @@ buoy_plot_D <- ggplot(buoy.D,aes_string(x = "date",y = "value",group = "paramete
                                  plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")); buoy_plot_D        
 ```
 
-```{r final figure}
+```{r final figure 1C}
 pdf(file="Figures/Rplot_buoy.pdf", width= 2.5, height=3, pointsize= 8, colormodel="cmyk", useDingbats = FALSE)
 grid.arrange(buoy_plot_T,buoy_plot_C,buoy_plot_D,ncol=1)
 dev.off()
@@ -318,10 +318,236 @@ tax_table(physeq_dupmerge) <- t
 ```
 
 ##Figure 2: alpha diversity
+``` {r rarefaction curves}
+
+psdata <- physeq_dupmerge
+psdata
+sample_sums(psdata)
+
+#calculate alphadiversity
+set.seed(42)
+
+calculate_rarefaction_curves <- function(psdata, measures, depths) {
+  require('plyr') # ldply
+  require('reshape2') # melt
+
+estimate_rarified_richness <- function(psdata, measures, depth) {
+    if(max(sample_sums(psdata)) < depth) return()
+    psdata <- prune_samples(sample_sums(psdata) >= depth, psdata)
+
+    rarified_psdata <- rarefy_even_depth(psdata, depth, verbose = FALSE)
+
+    alpha_diversity <- estimate_richness(rarified_psdata, measures = measures)
+
+    # as.matrix forces the use of melt.array, which includes the Sample names (rownames)
+    molten_alpha_diversity <- melt(as.matrix(alpha_diversity), varnames = c('Sample', 'Measure'), value.name = 'Alpha_diversity')
+
+    molten_alpha_diversity
+  }
+
+  names(depths) <- depths # this enables automatic addition of the Depth to the output by ldply
+  rarefaction_curve_data <- ldply(depths, estimate_rarified_richness, psdata = psdata, measures = measures, .id = 'Depth', .progress = ifelse(interactive(), 'text', 'none'))
+
+  # convert Depth from factor to numeric
+  rarefaction_curve_data$Depth <- as.numeric(levels(rarefaction_curve_data$Depth))[rarefaction_curve_data$Depth]
+
+  rarefaction_curve_data
+}
+
+rarefaction_curve_data <- calculate_rarefaction_curves(psdata, c('Observed'), rep(c(1, 10, 100, 1000, 1:100 * 10000), each = 10))
+summary(rarefaction_curve_data)
+
+#summarize alpha div
+rarefaction_curve_data_summary <- ddply(rarefaction_curve_data, c('Depth', 'Sample', 'Measure'), summarise, Alpha_diversity_mean = mean(Alpha_diversity), Alpha_diversity_sd = sd(Alpha_diversity))
+
+# add sample data
+rarefaction_curve_data_summary_verbose <- merge(rarefaction_curve_data_summary, data.frame(sample_data(psdata)), by.x = 'Sample', by.y = 'row.names')
+for(i in 1:length(rarefaction_curve_data_summary_verbose$Season)){
+  rarefaction_curve_data_summary_verbose$Depth_Seas[i]<-paste(as.character(rarefaction_curve_data_summary_verbose$Depth_C[i]),
+                                  as.character(rarefaction_curve_data_summary_verbose$Season[i]))}
+
+write.table(rarefaction_curve_data_summary_verbose, "Input_data/rarefaction_curve_data_summary_verbose", row.names = TRUE)
+
+
+#plot
+rar.all <- ggplot(
+  data = rarefaction_curve_data_summary_verbose,
+  mapping = aes(
+    x = Depth,
+    y = Alpha_diversity_mean,
+    ymin = Alpha_diversity_mean - Alpha_diversity_sd,
+    ymax = Alpha_diversity_mean + Alpha_diversity_sd,
+    color = Season, shape = Station, size = Fraction, fill = Depth_Seas,
+    group = Sample)) + 
+  scale_color_manual(name = "season", breaks=c("Sp", "Su",  "Fa"),
+                     labels = c("Spring", "Summer",  "Fall"), 
+                     values = c("Fa" = "mediumblue", "Sp" = "darkgreen", "Su" = "red")) +
+  scale_shape_manual(name = "station", breaks = c("MLB", "MM15",  "MM110"), 
+                     labels = c("MLB", "M15",  "M110"),
+                     values = c("MLB" = 21, "MM15" = 22, "MM110" = 24)) +
+  scale_size_manual(name = "fraction", breaks = c("E", "B"), 
+                     labels = c("Particle", "Free"),
+                     values = c("B" = 1, "E" = 2)) +
+  scale_fill_manual(name = "depth", breaks = c("D Sp", "D Su", "D Fa", "M Su", "S Sp", "S Su", "S Fa"), 
+                     labels = c("Deep","Deep","Deep", "Chla max", "Surface", "Surface", "Surface"),
+                     values = c("D Fa" = "mediumblue", "D Sp" = "darkgreen", "D Su" = "red", "M Su" = "orange", "S Sp" = "white", "S Su" = "white", "S Fa" = "white")) +
+  geom_vline(xintercept = 70480, colour="grey", linetype = "longdash") +
+  geom_line() + geom_pointrange(alpha=0.5) + 
+  facet_wrap(
+  facets = ~ Measure,
+  scales = 'free_y') +
+  theme(plot.title = element_text(face="bold", size=7),  #Set the plot title
+                                 strip.text.x = element_blank(),  #Set the facet titles on x-axis 
+                                 strip.text.y = element_blank(),  #Set the facet titles on x-axis 
+                                 strip.background = element_blank(),  #Set the facet background to no background
+                                 axis.title.x = element_text(face="bold", size=7),  #Set the x-axis title
+                                 axis.title.y = element_text(face="bold", size=7),  #Set the y-axis title
+                                 axis.text.x = element_text(angle=0, colour = "black", 
+                                                            vjust=1, hjust = 0.5, size=7),  #Set the x-axis labels
+                                 axis.text.y = element_text(colour = "black", size=7),  #Set the y-axis labels
+                                 legend.title = element_text(size = 8, face="bold"),  #Set the legend title 
+                                 legend.text = element_text(size = 8),  #Set the legend text
+                                 legend.position="top", #Default the legend position to the right
+                                 plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")); rar.all
+
+
+#plot
+rar.station <- ggplot(
+  data = rarefaction_curve_data_summary_verbose,
+  mapping = aes(
+    x = Depth,
+    y = Alpha_diversity_mean,
+    ymin = Alpha_diversity_mean - Alpha_diversity_sd,
+    ymax = Alpha_diversity_mean + Alpha_diversity_sd,
+    color = Station,
+    group = Sample)) + 
+  scale_color_manual(name = "station", breaks = c("MLB","MM15","MM110"), 
+                     labels = c("MLB","M15","M110"),
+                     values = c("MLB" = "darkgreen", "MM15" = "green", "MM110" = "blue")) +
+  geom_vline(xintercept = 70480, colour="grey", linetype = "longdash") +
+  geom_line() + geom_pointrange() + 
+  facet_wrap(
+  facets = ~ Measure,
+  scales = 'free_y') +
+  theme(plot.title = element_text(face="bold", size=7),  #Set the plot title
+                                 strip.text.x = element_blank(),  #Set the facet titles on x-axis 
+                                 strip.text.y = element_blank(),  #Set the facet titles on x-axis 
+                                 strip.background = element_blank(),  #Set the facet background to no background
+                                 axis.title.x = element_text(face="bold", size=7),  #Set the x-axis title
+                                 axis.title.y = element_text(face="bold", size=7),  #Set the y-axis title
+                                 axis.text.x = element_text(angle=0, colour = "black", 
+                                                            vjust=1, hjust = 0.5, size=7),  #Set the x-axis labels
+                                 axis.text.y = element_text(colour = "black", size=7),  #Set the y-axis labels
+                                 legend.title = element_text(size = 8, face="bold"),  #Set the legend title 
+                                 legend.text = element_text(size = 8),  #Set the legend text
+                                 legend.position="top", #Default the legend position to the right
+                                 plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")); rar.station
+
+rar.season <- ggplot(
+  data = rarefaction_curve_data_summary_verbose,
+  mapping = aes(
+    x = Depth,
+    y = Alpha_diversity_mean,
+    ymin = Alpha_diversity_mean - Alpha_diversity_sd,
+    ymax = Alpha_diversity_mean + Alpha_diversity_sd,
+    color = Season,
+    group = Sample)) + 
+    scale_color_manual(name = "season", breaks=c("Sp", "Su",  "Fa"),
+                     labels = c("Spring", "Summer",  "Fall"), 
+                     values = c("Fa" = "mediumblue", "Sp" = "darkgreen", "Su" = "red")) +
+  geom_vline(xintercept = 70480, colour="grey", linetype = "longdash") +
+  geom_line() + geom_pointrange() + 
+  facet_wrap(
+  facets = ~ Measure,
+  scales = 'free_y') +
+  theme(plot.title = element_text(face="bold", size=7),  #Set the plot title
+                                 strip.text.x = element_blank(),  #Set the facet titles on x-axis 
+                                 strip.text.y = element_blank(),  #Set the facet titles on x-axis 
+                                 strip.background = element_blank(),  #Set the facet background to no background
+                                 axis.title.x = element_text(face="bold", size=7),  #Set the x-axis title
+                                 axis.title.y = element_text(face="bold", size=7),  #Set the y-axis title
+                                 axis.text.x = element_text(angle=0, colour = "black", 
+                                                            vjust=1, hjust = 0.5, size=7),  #Set the x-axis labels
+                                 axis.text.y = element_text(colour = "black", size=7),  #Set the y-axis labels
+                                 legend.title = element_text(size = 8, face="bold"),  #Set the legend title 
+                                 legend.text = element_text(size = 8),  #Set the legend text
+                                 legend.position="top", #Default the legend position to the right
+                                 plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")); rar.season
+
+rar.fraction <- ggplot(
+  data = rarefaction_curve_data_summary_verbose,
+  mapping = aes(
+    x = Depth,
+    y = Alpha_diversity_mean,
+    ymin = Alpha_diversity_mean - Alpha_diversity_sd,
+    ymax = Alpha_diversity_mean + Alpha_diversity_sd,
+    color = Fraction,
+    group = Sample)) + 
+    scale_color_manual(name = "fraction", breaks = c("E", "B"), 
+                     labels = c("Particle", "Free"),
+                     values = c("B" = "grey", "E" = "black")) +
+  geom_vline(xintercept = 70480, colour="grey", linetype = "longdash") +
+  geom_line() + geom_pointrange() + 
+  facet_wrap(
+  facets = ~ Measure,
+  scales = 'free_y') +
+  theme(plot.title = element_text(face="bold", size=7),  #Set the plot title
+                                 strip.text.x = element_blank(),  #Set the facet titles on x-axis 
+                                 strip.text.y = element_blank(),  #Set the facet titles on x-axis 
+                                 strip.background = element_blank(),  #Set the facet background to no background
+                                 axis.title.x = element_text(face="bold", size=7),  #Set the x-axis title
+                                 axis.title.y = element_text(face="bold", size=7),  #Set the y-axis title
+                                 axis.text.x = element_text(angle=0, colour = "black", 
+                                                            vjust=1, hjust = 0.5, size=7),  #Set the x-axis labels
+                                 axis.text.y = element_text(colour = "black", size=7),  #Set the y-axis labels
+                                 legend.title = element_text(size = 8, face="bold"),  #Set the legend title 
+                                 legend.text = element_text(size = 8),  #Set the legend text
+                                 legend.position="top", #Default the legend position to the right
+                                 plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")); rar.fraction
+
+rar.depth <- ggplot(
+  data = rarefaction_curve_data_summary_verbose,
+  mapping = aes(
+    x = Depth,
+    y = Alpha_diversity_mean,
+    ymin = Alpha_diversity_mean - Alpha_diversity_sd,
+    ymax = Alpha_diversity_mean + Alpha_diversity_sd,
+    fill = Depth_C,
+    group = Sample)) + 
+    scale_fill_manual(name = "depth", breaks = c("D", "M", "S"), 
+                     labels = c("Deep","Chla max","Surface"),
+                     values = c("D" = "black", "M" = "grey", "S" = "white")) +
+  geom_vline(xintercept = 70480, colour="grey", linetype = "longdash") +
+  geom_line() + geom_pointrange(shape=21) + 
+  facet_wrap(
+  facets = ~ Measure,
+  scales = 'free_y') +
+  theme(plot.title = element_text(face="bold", size=7),  #Set the plot title
+                                 strip.text.x = element_blank(),  #Set the facet titles on x-axis 
+                                 strip.text.y = element_blank(),  #Set the facet titles on x-axis 
+                                 strip.background = element_blank(),  #Set the facet background to no background
+                                 axis.title.x = element_text(face="bold", size=7),  #Set the x-axis title
+                                 axis.title.y = element_text(face="bold", size=7),  #Set the y-axis title
+                                 axis.text.x = element_text(angle=0, colour = "black", 
+                                                            vjust=1, hjust = 0.5, size=7),  #Set the x-axis labels
+                                 axis.text.y = element_text(colour = "black", size=7),  #Set the y-axis labels
+                                 legend.title = element_text(size = 8, face="bold"),  #Set the legend title 
+                                 legend.text = element_text(size = 8),  #Set the legend text
+                                 legend.position="top", #Default the legend position to the right
+                                 plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")); rar.depth
+```
+
+```{r final figure S1: rarefaction}
+pdf(file="Figures/Rplot_rarefaction.pdf", width= 7, height=7, pointsize= 8, colormodel="cmyk", useDingbats = FALSE)
+grid.arrange(rar.fraction,rar.season,rar.station,rar.depth,ncol=2)
+dev.off()
+```
+
 ```{r alpha diversity metrics calculation}
 # For alpha diversity we will RAREFY our phyloseq object.  Our raw-data phyloseq object was:
 physeq_dupmerge  # Raw Merged Samples
 min(sample_sums(physeq_dupmerge))
+
 
 # Following code from Michelle Berry's Butterflygut website: http://rstudio-pubs-static.s3.amazonaws.com/25722_9fc9bdc48f0d4f13b05fa61baeda57a0.html#alpha-diversity
 # Rarefy to 70480 reads with replacement 100 times to estimate species richness
@@ -1559,6 +1785,13 @@ keep <- row.names(otu_table(physeq_dupmerge.prune))
 physeq.prune <- prune_taxa(keep, physeq.scale)
 ntaxa(physeq.prune) 
 
+### determine how many sequences included for each sample when only considering top OTUs
+relab_toptaxa <- sample_sums(physeq.prune)/sample_sums(physeq.scale)*100
+mean(relab_toptaxa)
+sd(relab_toptaxa)
+
+sample_sums(physeq)
+
 # Betadiv pcoa Bray-Curtis DNA only 
 physeq.pcoa.prune <-
   ordinate(
@@ -1839,7 +2072,7 @@ pcoa_SOR13.PRUNE_DNA <- ggplot(physeq.pcoa.prune.sor.df, aes(-Axis.1, Axis.3, co
 
 ```
 
-```{r final figures 3 + S1}
+```{r final figures 3 + S2}
 library(grid)
 library(gridExtra)
 
@@ -2634,7 +2867,7 @@ plot.phyllegend <- tmp$grobs[[leg]]
 
 ```
 
-```{r final figure 5 PA vs FL betadiv + DEseq and Fig. S2}
+```{r final figure 5 PA vs FL betadiv + DEseq and Fig. S3}
 library(grid)
 library(gridExtra)
 
@@ -3251,7 +3484,7 @@ plot.phyllegend <- tmp$grobs[[leg]]
 ```
 
 
-```{r final figure 6 + S3 by fraction}
+```{r final figure 6}
 library(grid)
 library(gridExtra)
 
@@ -3269,13 +3502,32 @@ View(sigtab.PA.SpvsSu)
 View(sigtab.PA.SuvsFa)
 View(sigtab.PA.SvsD)
 
+#for number of diff ab OTUs
+sum(as.numeric(as.character(sigtab.FL.LMvsMLB[which(sigtab.FL.LMvsMLB[,3]>0),22])))
+sum(as.numeric(as.character(sigtab.FL.LMvsMLB[which(sigtab.FL.LMvsMLB[,3]<0),22])))
+sum(as.numeric(as.character(sigtab.PA.LMvsMLB[which(sigtab.PA.LMvsMLB[,3]>0),22])))
+sum(as.numeric(as.character(sigtab.PA.LMvsMLB[which(sigtab.PA.LMvsMLB[,3]<0),22])))
+sum(as.numeric(as.character(sigtab.FL.SpvsSu[which(sigtab.FL.SpvsSu[,3]>0),22])))
+sum(as.numeric(as.character(sigtab.FL.SpvsSu[which(sigtab.FL.SpvsSu[,3]<0),22])))
+sum(as.numeric(as.character(sigtab.PA.SpvsSu[which(sigtab.PA.SpvsSu[,3]>0),22])))
+sum(as.numeric(as.character(sigtab.PA.SpvsSu[which(sigtab.PA.SpvsSu[,3]<0),22])))
+sum(as.numeric(as.character(sigtab.FL.SuvsFa[which(sigtab.FL.SuvsFa[,3]>0),22])))
+sum(as.numeric(as.character(sigtab.FL.SuvsFa[which(sigtab.FL.SuvsFa[,3]<0),22])))
+sum(as.numeric(as.character(sigtab.PA.SuvsFa[which(sigtab.PA.SuvsFa[,3]>0),22])))
+sum(as.numeric(as.character(sigtab.PA.SuvsFa[which(sigtab.PA.SuvsFa[,3]<0),22])))
+sum(as.numeric(as.character(sigtab.FL.SvsD[which(sigtab.FL.SvsD[,3]>0),22])))
+sum(as.numeric(as.character(sigtab.FL.SvsD[which(sigtab.FL.SvsD[,3]<0),22])))
+sum(as.numeric(as.character(sigtab.PA.SvsD[which(sigtab.PA.SvsD[,3]>0),22])))
+sum(as.numeric(as.character(sigtab.PA.SvsD[which(sigtab.PA.SvsD[,3]<0),22])))
+
+
 pdf(file="Figures/Rplot_deseq_fungroups_phylum_noY.pdf", width= 7, height=10, pointsize= 8, colormodel="cmyk", useDingbats = FALSE)
 grid.arrange(plot.phylLMvsMLB,plot.phyllegend,plot.phylSuvsSp,plot.phylSuvsFa,plot.phylFLvsPA,plot.phylSvsD, ncol=2)
 dev.off()
 
 ```
 
-```{r Figure S4: plot specific OTUs}
+```{r Figure 7: plot specific OTUs}
 #Michelle's function to plot otu data
 plot_otus <- function(df, otu, taxrank) {
 ggplot(df,aes(x = Season, y = Abundance, group = StatFrac, color = Station, shape = Station, linetype = Fraction, fill = StatFrac)) +
@@ -3316,7 +3568,7 @@ order_samples <- function(df) {
 physeq_dupmerge.prune.noM<-subset_samples(physeq_dupmerge.prune,Depth_C!="M")
 select <-physeq_dupmerge.prune.noM %>%
   transform_sample_counts(function(x) {x/sum(x)}) %>%
-  subset_taxa(Tribe == "LD12"|Tribe == "Lhab-A1"|Genus == "Nitrosospira"|Phylum =="Chloroflexi"|Genus == "Pnec"|Tribe == "Algor"|Species=="otu000019"|Species=="otu000022"|Tribe == "Algor"|Tribe == "Aquir"|Tribe == "AcI-B1"|Tribe == "LD28"|Family == "LD19"|Family == "Methylophilaceae"|Order=="Methylococcales") %>%
+  subset_taxa(Species=="Otu000003"|Tribe == "LD12"|Tribe == "Lhab-A1"|Genus == "Nitrosospira"|Phylum =="Chloroflexi"|Genus == "Pnec"|Tribe == "Algor"|Species=="Otu000019"|Species=="Otu000022"|Tribe == "Algor"|Tribe == "Aquir"|Tribe == "AcI-B1"|Tribe == "LD28"|Family == "LD19"|Family == "Methylophilaceae"|Order=="Methylococcales") %>%
   psmelt()
 
 select$xvalue <- paste(select$Season,select$Depth_C)
@@ -3327,7 +3579,7 @@ select_names <-as.list(levels(select$Species))
 names(select_names) <-levels(select$Species)
 
 select <- select[!(select$Station!="MLB" & select$Depth_C=="S" & select$DayNight=="N"),]
-  
+
 select_plots <-lapply(select_names,
   function(otu) {
     df_otu <-filter(select, OTU == otu)
@@ -3338,9 +3590,9 @@ select_plots <-lapply(select_names,
 
 blank <- grid.rect(gp=gpar(col="white"))
 
-pdf(file="Figures/Rplot_lineplots.pdf", width= 8.5, height=11, pointsize= 8, colormodel="cmyk", useDingbats = FALSE)
-grid.arrange(blank,select_plots$Otu000007,select_plots$Otu000008,select_plots$Otu000073,select_plots$Otu000081,select_plots$Otu000460,
-             select_plots$Otu000005,select_plots$Otu000010,
+pdf(file="Figures/Rplot_lineplots.pdf", width= 8.5, height=12.8, pointsize= 8, colormodel="cmyk", useDingbats = FALSE)
+grid.arrange(select_plots$Otu000003,select_plots$Otu000007,select_plots$Otu000008,select_plots$Otu000073,select_plots$Otu000081,select_plots$Otu000460,
+             select_plots$Otu000005,select_plots$Otu000010,select_plots$Otu000019,select_plots$Otu000022,
              select_plots$Otu000119,
              select_plots$Otu000002,select_plots$Otu000021,
              select_plots$Otu000049,select_plots$Otu105848,select_plots$Otu105854,select_plots$Otu106400,
