@@ -1808,6 +1808,13 @@ physeq.pcoa.prune.df <- merge(physeq.pcoa.prune.vectors,data.frame(duplicate_met
 for(i in 1:length(physeq.pcoa.prune.df$Season)){
   physeq.pcoa.prune.df$Depth_Seas[i]<-paste(as.character(physeq.pcoa.prune.df$Depth_C[i]),
                                   as.character(physeq.pcoa.prune.df$Season[i]))}
+for(i in 1:length(physeq.pcoa.prune.df$Season)){
+  physeq.pcoa.prune.df$Frac_Seas[i]<-paste(as.character(physeq.pcoa.prune.df$Fraction[i]),
+                                  as.character(physeq.pcoa.prune.df$Season[i]))}
+for(i in 1:length(physeq.pcoa.prune.df$Station)){
+  physeq.pcoa.prune.df$Depth_Stat[i]<-paste(as.character(physeq.pcoa.prune.df$Depth_C[i]),
+                                  as.character(physeq.pcoa.prune.df$Station[i]))}
+
 bray_values_DNA <- physeq.pcoa.prune$values
 bray_rel_eigens_DNA <- bray_values_DNA$Relative_eig
 bray_rel_eigen1_DNA <- bray_rel_eigens_DNA[1]
@@ -1879,6 +1886,43 @@ pcoa_BC13.PRUNE_DNA <- ggplot(physeq.pcoa.prune.df, aes(Axis.1, Axis.3, color = 
         legend.position = "none"); pcoa_BC13.PRUNE_DNA
   dev.off()
 
+pcoa_BC12.PRUNE_DNA_PAFLSeas <- ggplot(physeq.pcoa.prune.df, aes(Axis.1, Axis.2, color = Season, fill = Frac_Seas)) +
+  xlab(bray_axis1_DNA) + ylab(bray_axis2_DNA) + ggtitle(PCoA_DNA_title) +
+  geom_point(alpha=0.9, shape=21) + theme_bw() + #ylim(1, -1) + xlim(1, -1) +
+  scale_color_manual(name = "season", breaks=c("Sp", "Su",  "Fa"),
+                     labels = c("Spring", "Summer",  "Fall"), 
+                     values = c("Fa" = "mediumblue", "Sp" = "darkgreen", "Su" = "red")) +
+  scale_fill_manual(name = "depth", breaks = c("B Sp", "B Su", "B Fa", "E Sp", "E Su", "E Fa"), 
+                     labels = c("FL","FL","FL", "PA", "PA", "PA"),
+                     values = c("B Fa" = "mediumblue", "B Sp" = "darkgreen", "B Su" = "red", "E Sp" = "white", "E Su" = "white", "E Fa" = "white")) +
+  theme(plot.title = element_text(face="bold", size=8),  #Set the plot title
+        axis.text.x = element_text(colour="black", vjust=0.5, size=8), 
+        axis.text.y = element_text(colour="black", vjust=0.5, size=8),
+        axis.title.x = element_text(face="bold", size=8),
+        axis.title.y = element_text(face="bold", size=8),
+        legend.title = element_text(size=12, face="bold"),
+        legend.text = element_text(size = 12),
+        ###LEGEND TOP RIGHT CORNER
+        legend.position = "none"); pcoa_BC12.PRUNE_DNA_PAFLSeas
+
+pcoa_BC12.PRUNE_DNA_DepthStat <- ggplot(physeq.pcoa.prune.df, aes(Axis.1, Axis.2, color = Station, fill = Depth_Stat)) +
+  xlab(bray_axis1_DNA) + ylab(bray_axis2_DNA) + ggtitle(PCoA_DNA_title) +
+  geom_point(alpha=0.9, shape=21) + theme_bw() + #ylim(1, -1) + xlim(1, -1) +
+  scale_color_manual(name = "station", breaks = c("MLB", "MM15",  "MM110"), 
+                     labels = c("MLB", "M15",  "M110"),
+                     values = c("MLB" = "darkolivegreen4", "MM15" = "darkorange", "MM110" = "deepskyblue4")) +
+  scale_fill_manual(name = "depth", breaks = c("D MLB", "D MM15", "D MM110", "M MM110", "S MLB", "S MM15", "S MM110"), 
+                     labels = c("Deep","Deep","Deep", "Chla max", "Surface", "Surface", "Surface"),
+                     values = c("D MLB" = "white", "D MM15" = "white", "D MM110" = "white", "M MM110" = "deepskyblue2", "S MLB" = "darkolivegreen4", "S MM15" = "darkorange", "S MM110" = "deepskyblue4")) +
+  theme(plot.title = element_text(face="bold", size=8),  #Set the plot title
+        axis.text.x = element_text(colour="black", vjust=0.5, size=8), 
+        axis.text.y = element_text(colour="black", vjust=0.5, size=8),
+        axis.title.x = element_text(face="bold", size=8),
+        axis.title.y = element_text(face="bold", size=8),
+        legend.title = element_text(size=12, face="bold"),
+        legend.text = element_text(size = 12),
+        ###LEGEND TOP RIGHT CORNER
+        legend.position = "none"); pcoa_BC12.PRUNE_DNA_DepthStat
 ```
 
 ```{r pcoa Sørensen}
@@ -2078,12 +2122,12 @@ pcoa_SOR13.PRUNE_DNA <- ggplot(physeq.pcoa.prune.sor.df, aes(-Axis.1, Axis.3, co
 library(grid)
 library(gridExtra)
 
-pdf(file="Figures/Rplot_BetaDiv_pcoa.pdf", width= 7, height=3.5, pointsize= 8, colormodel="cmyk", useDingbats = FALSE)
-grid.arrange(pcoa_BC12_DNA,pcoa_SOR12_DNA,ncol=2)
+pdf(file="Figures/Rplot_BetaDiv_0.1_pcoa_MainFig3.pdf", width= 7, height=3.5, pointsize= 8, colormodel="cmyk", useDingbats = FALSE)
+grid.arrange(pcoa_BC12.PRUNE_DNA_PAFLSeas,pcoa_BC12.PRUNE_DNA_DepthStat,ncol=2)
 dev.off()
 
-pdf(file="Figures/Rplot_BetaDiv_0.1_pcoa.pdf", width= 7, height=3.5, pointsize= 8, colormodel="cmyk", useDingbats = FALSE)
-grid.arrange(pcoa_BC12.PRUNE_DNA,pcoa_SOR12.PRUNE_DNA,ncol=2)
+pdf(file="Figures/Rplot_BetaDiv_0.1vsall_pcoa.pdf", width= 7, height=7, pointsize= 8, colormodel="cmyk", useDingbats = FALSE)
+grid.arrange(pcoa_BC12.PRUNE_DNA,pcoa_SOR12.PRUNE_DNA,pcoa_BC12_DNA,pcoa_SOR12_DNA,ncol=4)
 dev.off()
 ```
 
@@ -3494,15 +3538,16 @@ pdf(file="Figures/Rplot_deseq_fungroups_noY_byfraction.pdf", width= 7, height=12
 grid.arrange(plot.LMvsMLB.FL,plot.LMvsMLB.PA,plot.SuvsSp.FL,plot.SuvsSp.PA,plot.SuvsFa.FL,plot.SuvsFa.PA,plot.SvsD.FL,plot.SvsD.PA,plot.legend, ncol=2)
 dev.off()
 
-#for annotating, view table to identify taxa:
-View(sigtab.FL.LMvsMLB)
-View(sigtab.FL.SpvsSu)
-View(sigtab.FL.SuvsFa)
-View(sigtab.FL.SvsD)
-View(sigtab.PA.LMvsMLB)
-View(sigtab.PA.SpvsSu)
-View(sigtab.PA.SuvsFa)
-View(sigtab.PA.SvsD)
+#for annotating, write table to identify taxa - also added to Table S2
+write.table(sigtab.phyl.FLvsPA, "Figures/sigtab.FLvsPA", row.names = TRUE)
+write.table(sigtab.FL.LMvsMLB, "Figures/sigtab.FL.LMvsMLB", row.names = TRUE)
+write.table(sigtab.FL.SpvsSu, "Figures/sigtab.FL.SpvsSu", row.names = TRUE)
+write.table(sigtab.FL.SuvsFa, "Figures/sigtab.FL.SuvsFa", row.names = TRUE)
+write.table(sigtab.FL.SvsD, "Figures/sigtab.FL.SvsD", row.names = TRUE)
+write.table(sigtab.PA.LMvsMLB, "Figures/sigtab.PA.LMvsMLB", row.names = TRUE)
+write.table(sigtab.PA.SpvsSu, "Figures/sigtab.PA.SpvsSu", row.names = TRUE)
+write.table(sigtab.PA.SuvsFa, "Figures/sigtab.PA.SuvsFa", row.names = TRUE)
+write.table(sigtab.PA.SvsD, "Figures/sigtab.PA.SvsD", row.names = TRUE)
 
 #for number of diff ab OTUs
 sum(as.numeric(as.character(sigtab.FL.LMvsMLB[which(sigtab.FL.LMvsMLB[,3]>0),22])))
