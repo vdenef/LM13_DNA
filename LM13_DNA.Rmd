@@ -191,10 +191,18 @@ dev.off()
 #(3) ITERATIVE PAIR MERGING: Reads are trimmed as a pair, removing the last base from whichever end has the highest expected error in a window 5bp wide.  Reads are trimmed from mean + 3 standard deviations to mean - 3 standard deviations in 0.5 standard deviation steps.  After each trimming step, pairs are merged into single sequences with either Flash or Pandaseq.  Pairs which are not merged continue to the next round of trimming.  Paired reads which are not combined are discarded.
 #(4) EXPECTED-ERROR FILTER: Merged reads are filtered if they have an expected number of errors which exceeds the threshold.  The config file indicates the maximum number of expected errors per 100bp. Note that Flash and Pandaseq produce different quality scores in the overlap-assembled regions.
 
-###as JGI used the wrong file to connect sample names to read files, we need to correct these using the following commands
-#TO BE ADDED
-
-
+###as JGI used the wrong file to connect sample names to read files for plate 2 (DNA 16S data), we need to correct these using the following commands on the command line. The hiqualctgs is a folder available from jgi after unzipping the data files. The data folder needs to be created. the path to the script needs to be modified depending on where you place it. the script is available on the github repository and essentially changes the group names used in mothur to the correct sample names based on the conversion file which is also included on the repository.
+#for file in `ls *itag`; do mkdir ../hiqualctgs/$file; done
+#cd ../hiqualctgs
+#for f in *itag\:; do mv "$f" "${f/itag\:/itag}";done
+#cd ../data
+#for file in `ls */hiqual.fastq`; do fastq_to_fasta -n -i $file |cat | awk '{if ((NR%2)==0)print prev"XXXXXX"$0;prev=$0;}' | sed 's/XXXXXX/\n/' |sed -e 's/ .*//g' -e 's/:/_/g' > ../hiqualctgs/$file; done
+#cd ../hiqualctgs
+#for f in `ls */*.fastq`; do t=$(echo $f | sed -e 's/\/.*$//' -e 's/_/./g' -e 's/.itag//g') && grep ">" $f |sed -e 's/>//g' -e "s/$/\t$t/g" > $t.groups; done
+#cat *.groups > jgi.contigs.groups.oldnames
+#rm *.groups
+#cat */*.fastq > jgi.contigs.fasta
+#ruby ~/software/scripts/ruby/change_name_vlookup.rb library_correction.table 0 1 hiqualctgs/jgi.contigs.groups.oldnames 1
 
 
 ### loading mothur output with FWDB+silva taxonomy and sample metadata. 
